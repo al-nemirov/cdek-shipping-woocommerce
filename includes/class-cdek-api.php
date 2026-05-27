@@ -357,6 +357,92 @@ class CDEK_Shipping_API {
     }
 
     /* ─────────────────────────────────────────────────────────
+     *  PRINT / LABELS
+     * ───────────────────────────────────────────────────────── */
+
+    /**
+     * POST request (alias for external use in admin class).
+     */
+    public function post_raw( string $endpoint, array $data = [] ): array {
+        return $this->post( $endpoint, $data );
+    }
+
+    /**
+     * Get print result as PDF binary.
+     *
+     * @param string $uuid Print request UUID
+     * @return string|null PDF binary or null if not ready
+     */
+    public function get_print_pdf( string $uuid ): ?string {
+        $url  = $this->base_url . '/print/orders/' . $uuid;
+        $args = [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->get_token(),
+                'Accept'        => 'application/pdf',
+            ],
+            'timeout' => 30,
+        ];
+
+        $response = wp_remote_get( $url, $args );
+
+        if ( is_wp_error( $response ) ) {
+            return null;
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+
+        // 202 = not ready yet
+        if ( $code === 202 ) {
+            return null;
+        }
+
+        if ( $code !== 200 ) {
+            return null;
+        }
+
+        $content_type = wp_remote_retrieve_header( $response, 'content-type' );
+        if ( str_contains( $content_type, 'application/pdf' ) ) {
+            return wp_remote_retrieve_body( $response );
+        }
+
+        // JSON response = check status
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+        $status = $body['entity']['statuses'][0]['code'] ?? '';
+        if ( $status === 'READY' ) {
+            // URL to download
+            $url_pdf = $body['entity']['url'] ?? '';
+            if ( $url_pdf ) {
+                $pdf_response = wp_remote_get( $url_pdf, [ 'timeout' => 30 ] );
+                if ( ! is_wp_error( $pdf_response ) && wp_remote_retrieve_response_code( $pdf_response ) === 200 ) {
+                    return wp_remote_retrieve_body( $pdf_response );
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create barcode (waybill) print request.
+     *
+     * @param string $order_uuid
+     * @return string Print request UUID
+     */
+    public function create_barcode_print( string $order_uuid ): string {
+        $result = $this->post( '/print/barcodes', [
+            'orders' => [ [ 'order_uuid' => $order_uuid ] ],
+        ] );
+        return $result['entity']['uuid'] ?? '';
+    }
+
+    /**
+     * Get barcode PDF.
+     */
+    public function get_barcode_pdf( string $print_uuid ): ?string {
+        return $this->get_print_pdf( str_replace( '/print/orders/', '/print/barcodes/', '' ) );
+    }
+
+    /* ─────────────────────────────────────────────────────────
      *  WEBHOOKS
      * ───────────────────────────────────────────────────────── */
 

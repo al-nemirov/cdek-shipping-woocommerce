@@ -3,8 +3,10 @@
  *
  * - Watches for CDEK shipping method selection
  * - Shows "Выбрать ПВЗ" button
- * - Opens PVZ selection modal (Yandex Maps + list)
+ * - Opens PVZ selection modal (Yandex Maps + clustered markers + list)
  * - Stores selected PVZ code in hidden field
+ * - Resets selection on city change
+ * - Nonce-protected AJAX
  */
 (function($) {
     'use strict';
@@ -15,22 +17,35 @@
         map:       null,
         mapReady:  false,
         city:      '',
-        overlay:   null
+        overlay:   null,
+        lastCity:  ''
     };
 
     /* ─── Init ─── */
     $(document).ready(function() {
         injectPvzButton();
 
-        // Watch for shipping method changes
         $(document.body).on('updated_checkout', function() {
             injectPvzButton();
+            checkCityChange();
         });
     });
 
-    /* ─── Inject PVZ button next to CDEK shipping option ─── */
+    /* ─── Check city change → reset PVZ ─── */
+    function checkCityChange() {
+        var city = $('#billing_city').val() || '';
+        if (state.lastCity && city && city !== state.lastCity) {
+            state.selected = null;
+            state.points = [];
+            $('#cdek_pvz_code').val('');
+            $('#cdek_pvz_address').val('');
+            $('.cdek-pvz-selected').remove();
+        }
+        state.lastCity = city;
+    }
+
+    /* ─── Inject PVZ button ─── */
     function injectPvzButton() {
-        // Find CDEK shipping method radio/label
         var $methods = $('input.shipping_method[value*="cdek_pvz"]');
         if (!$methods.length) return;
 
@@ -38,29 +53,28 @@
             var $input = $(this);
             var $li = $input.closest('li');
 
-            // Already has button?
             if ($li.find('.cdek-pvz-btn').length) return;
 
-            // Add button
             var $btn = $('<a href="#" class="cdek-pvz-btn">' +
                 '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
                 '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>' +
                 '<circle cx="12" cy="10" r="3"/></svg> ' +
-                'ВЫБРАТЬ ПВЗ СДЭК</a>');
+                'ВЫБРАТЬ ПВЗ</a>');
 
             // Show selected PVZ if any
             var selectedCode = $('#cdek_pvz_code').val();
             if (selectedCode) {
-                var $info = $('<div class="cdek-pvz-selected">' +
-                    '<span class="cdek-pvz-selected-label">ПВЗ:</span> ' +
-                    '<span class="cdek-pvz-selected-addr">' + ($('#cdek_pvz_address').val() || selectedCode) + '</span>' +
-                    '</div>');
-                $li.append($info);
+                var addr = $('#cdek_pvz_address').val() || selectedCode;
+                $li.append(
+                    '<div class="cdek-pvz-selected">' +
+                    '<span class="cdek-pvz-selected-label">✓ ПВЗ:</span> ' +
+                    '<span class="cdek-pvz-selected-addr">' + escHtml(addr) + '</span>' +
+                    '</div>'
+                );
             }
 
             $btn.on('click', function(e) {
                 e.preventDefault();
-                // Only load PVZ if this method is selected
                 $input.prop('checked', true).trigger('change');
                 openPvzModal();
             });
@@ -71,7 +85,6 @@
 
     /* ─── Open PVZ Modal ─── */
     function openPvzModal() {
-        // Determine city from billing
         var city = $('#billing_city').val() || '';
         var postcode = $('#billing_postcode').val() || '';
 
@@ -90,6 +103,7 @@
     function createOverlay() {
         if (state.overlay) {
             state.overlay.show();
+            $('body').css('overflow', 'hidden');
             return;
         }
 
@@ -97,20 +111,20 @@
             '<div id="cdek-pvz-overlay">' +
                 '<div class="cdek-pvz-modal">' +
                     '<div class="cdek-pvz-header">' +
-                        '<h3>Выберите пункт выдачи СДЭК</h3>' +
+                        '<h3>Пункты выдачи СДЭК</h3>' +
                         '<input type="text" id="cdek-pvz-search" placeholder="Поиск по адресу...">' +
-                        '<button class="cdek-pvz-close">&times;</button>' +
+                        '<button class="cdek-pvz-close" type="button" aria-label="Закрыть">&times;</button>' +
                     '</div>' +
                     '<div class="cdek-pvz-content">' +
                         '<div id="cdek-pvz-map"></div>' +
                         '<div id="cdek-pvz-list">' +
-                            '<div class="cdek-pvz-loading">Загрузка пунктов выдачи...</div>' +
+                            '<div class="cdek-pvz-loading"><div class="cdek-spinner"></div>Загрузка...</div>' +
                         '</div>' +
                     '</div>' +
                 '</div>' +
             '</div>';
 
-        $('body').append(html);
+        $('body').append(html).css('overflow', 'hidden');
         state.overlay = $('#cdek-pvz-overlay');
 
         // Close button
@@ -128,41 +142,56 @@
             if (e.key === 'Escape') closePvzModal();
         });
 
-        // Search filter
+        // Search filter (debounced)
+        var searchTimer;
         $('#cdek-pvz-search').on('input', function() {
             var q = $(this).val().toLowerCase();
-            filterPoints(q);
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() {
+                filterPoints(q);
+            }, 200);
         });
     }
 
     function closePvzModal() {
         if (state.overlay) state.overlay.hide();
+        $('body').css('overflow', '');
         $(document).off('keydown.cdekpvz');
     }
 
     /* ─── Load PVZ points via AJAX ─── */
     function loadPvzPoints(city, postcode) {
-        $('#cdek-pvz-list').html('<div class="cdek-pvz-loading">Загрузка пунктов выдачи...</div>');
+        $('#cdek-pvz-list').html('<div class="cdek-pvz-loading"><div class="cdek-spinner"></div>Загрузка пунктов выдачи...</div>');
 
         $.ajax({
             url: cdekShip.ajax_url,
             data: {
-                action:   'cdek_pvz',
+                action:   'cdek_ship_pvz',
+                nonce:    cdekShip.nonce,
                 city:     city,
                 postcode: postcode
             },
             success: function(resp) {
                 if (!resp.success) {
-                    $('#cdek-pvz-list').html('<div class="cdek-pvz-error">' + (resp.data || 'Ошибка') + '</div>');
+                    $('#cdek-pvz-list').html('<div class="cdek-pvz-error">' + escHtml(resp.data || 'Ошибка') + '</div>');
                     return;
                 }
 
                 state.points = resp.data.points || [];
+
+                if (!state.points.length) {
+                    $('#cdek-pvz-list').html('<div class="cdek-pvz-empty">Нет пунктов выдачи в этом городе</div>');
+                    return;
+                }
+
                 renderPointsList(state.points);
                 initMap(state.points);
+
+                // Update search placeholder with count
+                $('#cdek-pvz-search').attr('placeholder', 'Поиск среди ' + state.points.length + ' пунктов...');
             },
             error: function() {
-                $('#cdek-pvz-list').html('<div class="cdek-pvz-error">Ошибка загрузки</div>');
+                $('#cdek-pvz-list').html('<div class="cdek-pvz-error">Ошибка загрузки. Попробуйте ещё раз.</div>');
             }
         });
     }
@@ -173,7 +202,7 @@
         $list.empty();
 
         if (!points.length) {
-            $list.html('<div class="cdek-pvz-empty">Нет доступных ПВЗ</div>');
+            $list.html('<div class="cdek-pvz-empty">Ничего не найдено</div>');
             return;
         }
 
@@ -203,10 +232,11 @@
         });
     }
 
-    /* ─── Filter points by search query ─── */
+    /* ─── Filter points ─── */
     function filterPoints(q) {
         if (!q) {
             renderPointsList(state.points);
+            updateMapMarkers(state.points);
             return;
         }
         var filtered = state.points.filter(function(p) {
@@ -215,32 +245,31 @@
                    (p.code && p.code.toLowerCase().indexOf(q) >= 0);
         });
         renderPointsList(filtered);
+        updateMapMarkers(filtered);
     }
 
-    /* ─── Select a PVZ point ─── */
+    /* ─── Select a PVZ ─── */
     function selectPoint(point) {
         state.selected = point;
 
-        // Update hidden fields
         $('#cdek_pvz_code').val(point.code);
         $('#cdek_pvz_address').val(point.address);
 
-        // Visual highlight
         $('.cdek-pvz-item').removeClass('cdek-pvz-item--active');
         $('.cdek-pvz-item[data-code="' + point.code + '"]').addClass('cdek-pvz-item--active');
 
-        // Update info on checkout page
         updateCheckoutPvzInfo(point);
 
-        // Center map on selected point
         if (state.map && point.lat && point.lng) {
-            state.map.setCenter([point.lat, point.lng], 15);
+            state.map.setCenter([point.lat, point.lng], 16);
         }
 
-        // Close modal after short delay
         setTimeout(function() {
             closePvzModal();
-        }, 300);
+        }, 400);
+
+        // Trigger WC recalculation
+        $(document.body).trigger('update_checkout');
     }
 
     /* ─── Update checkout display ─── */
@@ -248,21 +277,29 @@
         $('.cdek-pvz-selected').remove();
 
         var $method = $('input.shipping_method[value*="cdek_pvz"]:checked').closest('li');
+        if (!$method.length) {
+            $method = $('input.shipping_method[value*="cdek_pvz"]').first().closest('li');
+        }
+
         if ($method.length) {
-            var $info = $('<div class="cdek-pvz-selected">' +
+            $method.find('.cdek-pvz-btn').after(
+                '<div class="cdek-pvz-selected">' +
                 '<span class="cdek-pvz-selected-label">✓ ПВЗ:</span> ' +
                 '<span class="cdek-pvz-selected-addr">' + escHtml(point.address) + '</span>' +
-                '</div>');
-            $method.find('.cdek-pvz-btn').after($info);
+                '</div>'
+            );
         }
     }
 
     /* ─── Init Yandex Map ─── */
     function initMap(points) {
-        // Load Yandex Maps API if not loaded
         if (typeof ymaps === 'undefined') {
+            var apiKey = (cdekShip && cdekShip.ymaps_api_key) || '';
+            var src = 'https://api-maps.yandex.ru/2.1/?lang=ru_RU';
+            if (apiKey) src += '&apikey=' + apiKey;
+
             var script = document.createElement('script');
-            script.src = 'https://api-maps.yandex.ru/2.1/?apikey=&lang=ru_RU';
+            script.src = src;
             script.onload = function() {
                 ymaps.ready(function() {
                     state.mapReady = true;
@@ -280,17 +317,17 @@
         }
     }
 
+    var currentClusterer = null;
+
     function buildMap(points) {
         var container = document.getElementById('cdek-pvz-map');
         if (!container) return;
 
-        // Destroy old map
         if (state.map) {
             state.map.destroy();
             state.map = null;
         }
 
-        // Default center (Moscow)
         var center = [55.751244, 37.618423];
         if (points.length && points[0].lat) {
             center = [points[0].lat, points[0].lng];
@@ -302,20 +339,36 @@
             controls: ['zoomControl', 'geolocationControl']
         });
 
-        // Add placemarks
-        var collection = new ymaps.GeoObjectCollection();
+        addMarkers(points);
+    }
+
+    function addMarkers(points) {
+        if (!state.map) return;
+
+        if (currentClusterer) {
+            state.map.geoObjects.remove(currentClusterer);
+        }
+
+        var clusterer = new ymaps.Clusterer({
+            preset: 'islands#redClusterIcons',
+            groupByCoordinates: false,
+            clusterDisableClickZoom: false
+        });
+
+        var placemarks = [];
 
         points.forEach(function(p) {
             if (!p.lat || !p.lng) return;
 
             var placemark = new ymaps.Placemark([p.lat, p.lng], {
-                balloonContentHeader: p.name || p.code,
+                balloonContentHeader: '<b>' + escHtml(p.name || p.code) + '</b>',
                 balloonContentBody:
-                    '<div style="font-size:13px">' +
-                    '<b>' + escHtml(p.address) + '</b><br>' +
-                    p.work_time + '<br>' +
+                    '<div style="font-size:13px;max-width:250px">' +
+                    escHtml(p.address) + '<br>' +
+                    '<span style="color:#666">' + escHtml(p.work_time) + '</span><br>' +
                     '<a href="#" onclick="window.cdekSelectPvz(\'' + p.code + '\');return false;" ' +
-                    'style="color:#e53935;font-weight:bold;margin-top:4px;display:inline-block">Выбрать этот ПВЗ</a>' +
+                    'style="color:#e53935;font-weight:bold;margin-top:6px;display:inline-block;font-size:14px">' +
+                    '→ Выбрать</a>' +
                     '</div>',
                 hintContent: p.address
             }, {
@@ -323,25 +376,38 @@
             });
 
             placemark.events.add('click', function() {
-                // Highlight in list
-                var $item = $('.cdek-pvz-item[data-code="' + p.code + '"]');
-                if ($item.length) {
-                    $('#cdek-pvz-list').scrollTop(0);
-                    var pos = $item.position().top + $('#cdek-pvz-list').scrollTop();
-                    $('#cdek-pvz-list').animate({ scrollTop: pos - 10 }, 200);
-                    $item.addClass('cdek-pvz-item--highlight');
-                    setTimeout(function() { $item.removeClass('cdek-pvz-item--highlight'); }, 1500);
-                }
+                highlightListItem(p.code);
             });
 
-            collection.add(placemark);
+            placemarks.push(placemark);
         });
 
-        state.map.geoObjects.add(collection);
+        clusterer.add(placemarks);
+        state.map.geoObjects.add(clusterer);
+        currentClusterer = clusterer;
 
-        // Fit bounds
-        if (points.length > 1) {
-            state.map.setBounds(collection.getBounds(), { checkZoomRange: true, zoomMargin: 30 });
+        if (placemarks.length > 1) {
+            state.map.setBounds(clusterer.getBounds(), {
+                checkZoomRange: true,
+                zoomMargin: 40
+            });
+        }
+    }
+
+    function updateMapMarkers(points) {
+        if (!state.map || !state.mapReady) return;
+        addMarkers(points);
+    }
+
+    function highlightListItem(code) {
+        var $item = $('.cdek-pvz-item[data-code="' + code + '"]');
+        if ($item.length) {
+            var $list = $('#cdek-pvz-list');
+            $list.scrollTop(0);
+            var pos = $item.position().top + $list.scrollTop();
+            $list.animate({ scrollTop: pos - 10 }, 200);
+            $item.addClass('cdek-pvz-item--highlight');
+            setTimeout(function() { $item.removeClass('cdek-pvz-item--highlight'); }, 1500);
         }
     }
 
