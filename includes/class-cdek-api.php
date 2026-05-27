@@ -7,7 +7,7 @@
  *
  * @see https://api-docs.cdek.ru/29923741.html
  */
-class Rodina_CDEK_API {
+class CDEK_Shipping_API {
 
     /** @var string Production API base */
     const API_PROD = 'https://api.cdek.ru/v2';
@@ -69,7 +69,7 @@ class Rodina_CDEK_API {
         }
 
         // Check transient cache
-        $cached = get_transient( 'rodina_cdek_token' );
+        $cached = get_transient( 'cdek_ship_token' );
         if ( $cached ) {
             $this->token = $cached;
             $this->token_expires = time() + 1800; // assume half-life
@@ -99,7 +99,7 @@ class Rodina_CDEK_API {
         $this->token = $body['access_token'];
         $this->token_expires = time() + ( (int) ( $body['expires_in'] ?? 3600 ) - 60 );
 
-        set_transient( 'rodina_cdek_token', $this->token, (int) ( $body['expires_in'] ?? 3600 ) - 120 );
+        set_transient( 'cdek_ship_token', $this->token, (int) ( $body['expires_in'] ?? 3600 ) - 120 );
 
         return $this->token;
     }
@@ -245,7 +245,7 @@ class Rodina_CDEK_API {
      * Get delivery points with caching (1 hour per city).
      */
     public function get_delivery_points_cached( int $city_code, string $type = 'PVZ' ): array {
-        $cache_key = "rodina_cdek_pvz_{$city_code}_{$type}";
+        $cache_key = "cdek_ship_pvz_{$city_code}_{$type}";
         $cached = get_transient( $cache_key );
 
         if ( $cached !== false ) {
@@ -339,12 +339,12 @@ class Rodina_CDEK_API {
             'type'            => 1, // 1 = интернет-магазин
             'number'          => (string) $wc_order->get_id(),
             'tariff_code'     => $tariff_code,
-            'comment'         => 'Заказ #' . $wc_order->get_order_number() . ' — rodina-kniga.ru',
+            'comment'         => 'Заказ #' . $wc_order->get_order_number(),
             'shipment_point'  => $from_location['code'] ?? null, // код ПВЗ отправки (если сдаёте в ПВЗ)
             'delivery_point'  => $delivery_point_code,
             'sender'          => [
-                'name'   => 'Издательство Родина',
-                'phones' => [ [ 'number' => '+74951234567' ] ],
+                'name'   => get_bloginfo( 'name' ),
+                'phones' => [],
             ],
             'recipient'       => [
                 'name'   => $wc_order->get_billing_first_name() . ' ' . $wc_order->get_billing_last_name(),

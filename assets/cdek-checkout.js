@@ -1,5 +1,5 @@
 /**
- * Родина — СДЭК: Checkout frontend
+ * СДЭК Доставка: Checkout frontend
  *
  * - Watches for CDEK shipping method selection
  * - Shows "Выбрать ПВЗ" button
@@ -31,7 +31,7 @@
     /* ─── Inject PVZ button next to CDEK shipping option ─── */
     function injectPvzButton() {
         // Find CDEK shipping method radio/label
-        var $methods = $('input.shipping_method[value*="rodina_cdek_pvz"]');
+        var $methods = $('input.shipping_method[value*="cdek_pvz"]');
         if (!$methods.length) return;
 
         $methods.each(function() {
@@ -145,9 +145,9 @@
         $('#cdek-pvz-list').html('<div class="cdek-pvz-loading">Загрузка пунктов выдачи...</div>');
 
         $.ajax({
-            url: rodinaCdek.ajax_url,
+            url: cdekShip.ajax_url,
             data: {
-                action:   'rodina_cdek_pvz',
+                action:   'cdek_pvz',
                 city:     city,
                 postcode: postcode
             },
@@ -247,7 +247,7 @@
     function updateCheckoutPvzInfo(point) {
         $('.cdek-pvz-selected').remove();
 
-        var $method = $('input.shipping_method[value*="rodina_cdek_pvz"]:checked').closest('li');
+        var $method = $('input.shipping_method[value*="cdek_pvz"]:checked').closest('li');
         if ($method.length) {
             var $info = $('<div class="cdek-pvz-selected">' +
                 '<span class="cdek-pvz-selected-label">✓ ПВЗ:</span> ' +

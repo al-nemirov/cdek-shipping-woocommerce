@@ -1,27 +1,27 @@
 <?php
 /**
- * Plugin Name: Родина — СДЭК Доставка
- * Description: Доставка СДЭК до пункта выдачи (ПВЗ). Магазин → СДЭК → ПВЗ клиента. Расчёт стоимости, выбор ПВЗ на карте, создание заказа.
+ * Plugin Name: СДЭК Доставка — ПВЗ
+ * Description: Доставка СДЭК до пункта выдачи (ПВЗ). Склад → СДЭК → ПВЗ клиента. Расчёт стоимости, выбор ПВЗ на карте, создание заказа.
  * Version: 1.0.0
- * Author: Издательство Родина
+ * Author: al-nemirov
  * Requires PHP: 8.0
  * Requires at least: 6.0
  * WC requires at least: 8.0
- * Text Domain: rodina-cdek
+ * Text Domain: cdek-shipping
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'RODINA_CDEK_VERSION', '1.0.0' );
-define( 'RODINA_CDEK_DIR', plugin_dir_path( __FILE__ ) );
-define( 'RODINA_CDEK_URL', plugin_dir_url( __FILE__ ) );
+define( 'CDEK_SHIP_VERSION', '1.0.0' );
+define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
+define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 
 /* ═══════════════════════════════════════════════════════════
  *  1. AUTOLOAD
  * ═══════════════════════════════════════════════════════════ */
 
-require_once RODINA_CDEK_DIR . 'includes/class-cdek-api.php';
-require_once RODINA_CDEK_DIR . 'includes/class-cdek-shipping.php';
+require_once CDEK_SHIP_DIR . 'includes/class-cdek-api.php';
+require_once CDEK_SHIP_DIR . 'includes/class-cdek-shipping.php';
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -29,7 +29,7 @@ require_once RODINA_CDEK_DIR . 'includes/class-cdek-shipping.php';
  * ═══════════════════════════════════════════════════════════ */
 
 add_filter( 'woocommerce_shipping_methods', function ( $methods ) {
-    $methods['rodina_cdek_pvz'] = 'Rodina_CDEK_Shipping_Method';
+    $methods['cdek_pvz'] = 'CDEK_Shipping_Method';
     return $methods;
 } );
 
@@ -44,23 +44,23 @@ add_action( 'admin_menu', function () {
         'СДЭК Настройки',
         'СДЭК',
         'manage_woocommerce',
-        'rodina-cdek',
-        'rodina_cdek_settings_page'
+        'cdek-shipping',
+        'cdek_ship_settings_page'
     );
 } );
 
-function rodina_cdek_settings_page(): void {
-    if ( isset( $_POST['rodina_cdek_save'] ) && check_admin_referer( 'rodina_cdek_nonce' ) ) {
+function cdek_ship_settings_page(): void {
+    if ( isset( $_POST['cdek_ship_save'] ) && check_admin_referer( 'cdek_ship_nonce' ) ) {
         $settings = [
             'account'   => sanitize_text_field( $_POST['account'] ?? '' ),
             'secret'    => sanitize_text_field( $_POST['secret'] ?? '' ),
             'test_mode' => isset( $_POST['test_mode'] ) ? 'yes' : 'no',
         ];
-        update_option( 'rodina_cdek_settings', $settings );
+        update_option( 'cdek_ship_settings', $settings );
         echo '<div class="notice notice-success"><p>Настройки сохранены.</p></div>';
     }
 
-    $s = get_option( 'rodina_cdek_settings', [
+    $s = get_option( 'cdek_ship_settings', [
         'account'   => '',
         'secret'    => '',
         'test_mode' => 'yes',
@@ -69,7 +69,7 @@ function rodina_cdek_settings_page(): void {
     <div class="wrap">
         <h1>СДЭК — Настройки API</h1>
         <form method="post">
-            <?php wp_nonce_field( 'rodina_cdek_nonce' ); ?>
+            <?php wp_nonce_field( 'cdek_ship_nonce' ); ?>
             <table class="form-table">
                 <tr>
                     <th>Account (Client ID)</th>
@@ -102,7 +102,7 @@ function rodina_cdek_settings_page(): void {
             </p>
 
             <p class="submit">
-                <input type="submit" name="rodina_cdek_save" class="button-primary" value="Сохранить">
+                <input type="submit" name="cdek_ship_save" class="button-primary" value="Сохранить">
             </p>
         </form>
     </div>
@@ -110,7 +110,7 @@ function rodina_cdek_settings_page(): void {
     document.getElementById('cdek-test-btn').addEventListener('click', function() {
         var r = document.getElementById('cdek-test-result');
         r.textContent = 'Проверка...';
-        fetch(ajaxurl + '?action=rodina_cdek_test_api')
+        fetch(ajaxurl + '?action=cdek_ship_test_api')
             .then(function(res){ return res.json(); })
             .then(function(data){
                 if(data.success) {
@@ -126,10 +126,10 @@ function rodina_cdek_settings_page(): void {
 }
 
 /* Test API connection */
-add_action( 'wp_ajax_rodina_cdek_test_api', function () {
+add_action( 'wp_ajax_cdek_ship_test_api', function () {
     try {
-        $s = get_option( 'rodina_cdek_settings', [] );
-        $api = new Rodina_CDEK_API(
+        $s = get_option( 'cdek_ship_settings', [] );
+        $api = new CDEK_Shipping_API(
             $s['account'] ?? '',
             $s['secret'] ?? '',
             ( $s['test_mode'] ?? 'yes' ) === 'yes'
@@ -153,12 +153,12 @@ add_action( 'wp_ajax_rodina_cdek_test_api', function () {
 
 /**
  * AJAX: Get CDEK PVZ list for a city.
- * POST/GET wp-admin/admin-ajax.php?action=rodina_cdek_pvz&city=Москва
+ * POST/GET wp-admin/admin-ajax.php?action=cdek_pvz&city=Москва
  */
-add_action( 'wp_ajax_rodina_cdek_pvz', 'rodina_cdek_ajax_pvz' );
-add_action( 'wp_ajax_nopriv_rodina_cdek_pvz', 'rodina_cdek_ajax_pvz' );
+add_action( 'wp_ajax_cdek_pvz', 'cdek_ship_ajax_pvz' );
+add_action( 'wp_ajax_nopriv_cdek_pvz', 'cdek_ship_ajax_pvz' );
 
-function rodina_cdek_ajax_pvz(): void {
+function cdek_ship_ajax_pvz(): void {
     $city      = sanitize_text_field( $_REQUEST['city'] ?? '' );
     $postcode  = sanitize_text_field( $_REQUEST['postcode'] ?? '' );
 
@@ -167,7 +167,7 @@ function rodina_cdek_ajax_pvz(): void {
     }
 
     try {
-        $api = rodina_cdek_get_api();
+        $api = cdek_ship_get_api();
 
         // Resolve city code
         $city_code = null;
@@ -218,24 +218,24 @@ function rodina_cdek_ajax_pvz(): void {
 
 /**
  * AJAX: Calculate CDEK delivery cost.
- * POST wp-admin/admin-ajax.php?action=rodina_cdek_calc&city=Москва&postcode=630001
+ * POST wp-admin/admin-ajax.php?action=cdek_ship_calc&city=Москва&postcode=630001
  */
-add_action( 'wp_ajax_rodina_cdek_calc', 'rodina_cdek_ajax_calc' );
-add_action( 'wp_ajax_nopriv_rodina_cdek_calc', 'rodina_cdek_ajax_calc' );
+add_action( 'wp_ajax_cdek_ship_calc', 'cdek_ship_ajax_calc' );
+add_action( 'wp_ajax_nopriv_cdek_ship_calc', 'cdek_ship_ajax_calc' );
 
-function rodina_cdek_ajax_calc(): void {
+function cdek_ship_ajax_calc(): void {
     $city     = sanitize_text_field( $_REQUEST['city'] ?? '' );
     $postcode = sanitize_text_field( $_REQUEST['postcode'] ?? '' );
 
     try {
-        $api = rodina_cdek_get_api();
+        $api = cdek_ship_get_api();
 
         // Get shipping method settings
         $zones = WC_Shipping_Zones::get_zones();
         $settings = [];
         foreach ( $zones as $zone ) {
             foreach ( $zone['shipping_methods'] as $method ) {
-                if ( $method->id === 'rodina_cdek_pvz' ) {
+                if ( $method->id === 'cdek_pvz' ) {
                     $settings = $method->instance_settings;
                     break 2;
                 }
@@ -295,17 +295,17 @@ function rodina_cdek_ajax_calc(): void {
 /**
  * AJAX: Search CDEK cities (for autocomplete).
  */
-add_action( 'wp_ajax_rodina_cdek_cities', 'rodina_cdek_ajax_cities' );
-add_action( 'wp_ajax_nopriv_rodina_cdek_cities', 'rodina_cdek_ajax_cities' );
+add_action( 'wp_ajax_cdek_ship_cities', 'cdek_ship_ajax_cities' );
+add_action( 'wp_ajax_nopriv_cdek_ship_cities', 'cdek_ship_ajax_cities' );
 
-function rodina_cdek_ajax_cities(): void {
+function cdek_ship_ajax_cities(): void {
     $q = sanitize_text_field( $_REQUEST['q'] ?? '' );
     if ( mb_strlen( $q ) < 2 ) {
         wp_send_json_success( [] );
     }
 
     try {
-        $api = rodina_cdek_get_api();
+        $api = cdek_ship_get_api();
         $cities = $api->get_cities( [ 'city' => $q, 'size' => 10 ] );
 
         $result = [];
@@ -325,11 +325,11 @@ function rodina_cdek_ajax_cities(): void {
 }
 
 /** Helper: get configured API instance */
-function rodina_cdek_get_api(): Rodina_CDEK_API {
+function cdek_ship_get_api(): CDEK_Shipping_API {
     static $api = null;
     if ( ! $api ) {
-        $s = get_option( 'rodina_cdek_settings', [] );
-        $api = new Rodina_CDEK_API(
+        $s = get_option( 'cdek_ship_settings', [] );
+        $api = new CDEK_Shipping_API(
             $s['account'] ?? '',
             $s['secret'] ?? '',
             ( $s['test_mode'] ?? 'yes' ) === 'yes'
@@ -347,23 +347,23 @@ add_action( 'wp_enqueue_scripts', function () {
     if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) return;
 
     wp_enqueue_style(
-        'rodina-cdek-checkout',
-        RODINA_CDEK_URL . 'assets/cdek-checkout.css',
+        'cdek-ship-checkout',
+        CDEK_SHIP_URL . 'assets/cdek-checkout.css',
         [],
-        RODINA_CDEK_VERSION
+        CDEK_SHIP_VERSION
     );
 
     wp_enqueue_script(
-        'rodina-cdek-checkout',
-        RODINA_CDEK_URL . 'assets/cdek-checkout.js',
+        'cdek-ship-checkout',
+        CDEK_SHIP_URL . 'assets/cdek-checkout.js',
         [ 'jquery' ],
-        RODINA_CDEK_VERSION,
+        CDEK_SHIP_VERSION,
         true
     );
 
-    wp_localize_script( 'rodina-cdek-checkout', 'rodinaCdek', [
+    wp_localize_script( 'cdek-ship-checkout', 'cdekShip', [
         'ajax_url' => admin_url( 'admin-ajax.php' ),
-        'nonce'    => wp_create_nonce( 'rodina_cdek_nonce' ),
+        'nonce'    => wp_create_nonce( 'cdek_ship_nonce' ),
     ] );
 } );
 

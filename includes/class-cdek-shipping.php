@@ -5,13 +5,13 @@
  * Calculates shipping cost via CDEK API (tariffs 136/234: склад → ПВЗ).
  * Shows CDEK pickup points on checkout for customer selection.
  */
-class Rodina_CDEK_Shipping_Method extends WC_Shipping_Method {
+class CDEK_Shipping_Method extends WC_Shipping_Method {
 
-    /** @var Rodina_CDEK_API */
+    /** @var CDEK_Shipping_API */
     private $api;
 
     public function __construct( $instance_id = 0 ) {
-        $this->id                 = 'rodina_cdek_pvz';
+        $this->id                 = 'cdek_pvz';
         $this->instance_id        = absint( $instance_id );
         $this->method_title       = 'СДЭК — ПВЗ';
         $this->method_description = 'Доставка СДЭК до пункта выдачи. Магазин отправляет посылку в СДЭК, клиент забирает из ПВЗ.';
@@ -274,14 +274,14 @@ class Rodina_CDEK_Shipping_Method extends WC_Shipping_Method {
     /**
      * Lazy-load CDEK API instance.
      */
-    private function get_api(): Rodina_CDEK_API {
+    private function get_api(): CDEK_Shipping_API {
         if ( ! $this->api ) {
-            $settings  = get_option( 'rodina_cdek_settings', [] );
+            $settings  = get_option( 'cdek_ship_settings', [] );
             $account   = $settings['account'] ?? '';
             $secret    = $settings['secret'] ?? '';
             $test_mode = ( $settings['test_mode'] ?? 'yes' ) === 'yes';
 
-            $this->api = new Rodina_CDEK_API( $account, $secret, $test_mode );
+            $this->api = new CDEK_Shipping_API( $account, $secret, $test_mode );
         }
         return $this->api;
     }
