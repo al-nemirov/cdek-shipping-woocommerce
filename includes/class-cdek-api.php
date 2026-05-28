@@ -68,8 +68,9 @@ class CDEK_Shipping_API {
             return $this->token;
         }
 
-        // Check transient cache
-        $cached = get_transient( 'cdek_ship_token' );
+        // Check transient cache (separate per environment to avoid test/prod conflicts)
+        $cache_key = 'cdek_ship_token_' . ( $this->base_url === self::API_TEST ? 'test' : 'prod' );
+        $cached = get_transient( $cache_key );
         if ( $cached ) {
             $this->token = $cached;
             $this->token_expires = time() + 1800; // assume half-life
@@ -99,7 +100,7 @@ class CDEK_Shipping_API {
         $this->token = $body['access_token'];
         $this->token_expires = time() + ( (int) ( $body['expires_in'] ?? 3600 ) - 60 );
 
-        set_transient( 'cdek_ship_token', $this->token, (int) ( $body['expires_in'] ?? 3600 ) - 120 );
+        set_transient( $cache_key, $this->token, (int) ( $body['expires_in'] ?? 3600 ) - 120 );
 
         return $this->token;
     }
@@ -335,12 +336,11 @@ class CDEK_Shipping_API {
         array $from_location,
         array $packages
     ): array {
-        return [
+        $payload = [
             'type'            => 1, // 1 = интернет-магазин
             'number'          => (string) $wc_order->get_id(),
             'tariff_code'     => $tariff_code,
             'comment'         => 'Заказ #' . $wc_order->get_order_number(),
-            'shipment_point'  => $from_location['code'] ?? null, // код ПВЗ отправки (если сдаёте в ПВЗ)
             'delivery_point'  => $delivery_point_code,
             'sender'          => [
                 'name'   => get_bloginfo( 'name' ),
@@ -354,6 +354,14 @@ class CDEK_Shipping_API {
             'from_location'   => $from_location,
             'packages'        => $packages,
         ];
+
+        // shipment_point — только если передан конкретный код ПВЗ/склада СДЭК (не город)
+        // Если магазин вызывает курьера — этого поля не будет, используется from_location
+        if ( ! empty( $from_location['pvz_code'] ) ) {
+            $payload['shipment_point'] = $from_location['pvz_code'];
+        }
+
+        return $payload;
     }
 
     /* ─────────────────────────────────────────────────────────
@@ -437,9 +445,40 @@ class CDEK_Shipping_API {
 
     /**
      * Get barcode PDF.
+     *
+     * @param string $print_uuid  Barcode print request UUID
+     * @return string|null PDF binary or null if not ready
      */
     public function get_barcode_pdf( string $print_uuid ): ?string {
-        return $this->get_print_pdf( str_replace( '/print/orders/', '/print/barcodes/', '' ) );
+        $url  = $this->base_url . '/print/barcodes/' . $print_uuid;
+        $args = [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->get_token(),
+                'Accept'        => 'application/pdf',
+            ],
+            'timeout' => 30,
+        ];
+
+        $response = wp_remote_get( $url, $args );
+
+        if ( is_wp_error( $response ) ) {
+            return null;
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( $code === 202 ) {
+            return null; // not ready yet
+        }
+        if ( $code !== 200 ) {
+            return null;
+        }
+
+        $content_type = wp_remote_retrieve_header( $response, 'content-type' );
+        if ( str_contains( $content_type, 'application/pdf' ) ) {
+            return wp_remote_retrieve_body( $response );
+        }
+
+        return null;
     }
 
     /* ─────────────────────────────────────────────────────────

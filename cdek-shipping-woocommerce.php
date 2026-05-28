@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.1.0' );
+define( 'CDEK_SHIP_VERSION', '1.2.0' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );
@@ -26,7 +26,11 @@ define( 'CDEK_SHIP_FILE', __FILE__ );
 
 require_once CDEK_SHIP_DIR . 'includes/class-cdek-api.php';
 require_once CDEK_SHIP_DIR . 'includes/class-cdek-shipping.php';
-require_once CDEK_SHIP_DIR . 'includes/class-cdek-admin.php';
+
+// Admin class only on backend (metabox, order management, labels)
+if ( is_admin() ) {
+    require_once CDEK_SHIP_DIR . 'includes/class-cdek-admin.php';
+}
 
 
 /* ═══════════════════════════════════════════════════════════
@@ -142,13 +146,19 @@ function cdek_ship_settings_page(): void {
         fetch(ajaxurl + '?action=cdek_ship_test_api&_wpnonce=<?= wp_create_nonce( 'cdek_ship_test' ) ?>')
             .then(function(res){ return res.json(); })
             .then(function(data){
-                if(data.success) {
-                    r.innerHTML = '<span style="color:green">✓ ' + data.data + '</span>';
-                } else {
-                    r.innerHTML = '<span style="color:red">✗ ' + data.data + '</span>';
-                }
+                var span = document.createElement('span');
+                span.style.color = data.success ? 'green' : 'red';
+                span.textContent = (data.success ? '✓ ' : '✗ ') + data.data;
+                r.innerHTML = '';
+                r.appendChild(span);
             })
-            .catch(function(e){ r.innerHTML = '<span style="color:red">✗ ' + e.message + '</span>'; });
+            .catch(function(e){
+                var span = document.createElement('span');
+                span.style.color = 'red';
+                span.textContent = '✗ ' + e.message;
+                r.innerHTML = '';
+                r.appendChild(span);
+            });
     });
     </script>
     <?php

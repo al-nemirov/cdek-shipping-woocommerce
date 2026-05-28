@@ -247,10 +247,14 @@ class CDEK_Shipping_Method extends WC_Shipping_Method {
             }
             $total_weight += $w * $qty;
 
-            // Dimensions in cm
-            $l = (float) $product->get_length() ?: $default_length;
-            $wi = (float) $product->get_width() ?: $default_width;
-            $h = (float) $product->get_height() ?: $default_height;
+            // Dimensions in cm (convert from WC units)
+            $dim_unit = get_option( 'woocommerce_dimension_unit', 'cm' );
+            $l  = (float) $product->get_length();
+            $wi = (float) $product->get_width();
+            $h  = (float) $product->get_height();
+            if ( $l > 0 ) { $l = wc_get_dimension( $l, 'cm', $dim_unit ); } else { $l = $default_length; }
+            if ( $wi > 0 ) { $wi = wc_get_dimension( $wi, 'cm', $dim_unit ); } else { $wi = $default_width; }
+            if ( $h > 0 ) { $h = wc_get_dimension( $h, 'cm', $dim_unit ); } else { $h = $default_height; }
 
             $max_length = max( $max_length, $l );
             $max_width  = max( $max_width, $wi );

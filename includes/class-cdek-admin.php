@@ -16,10 +16,7 @@ class CDEK_Shipping_Admin {
         // Metabox
         add_action( 'add_meta_boxes', [ $this, 'add_metabox' ] );
 
-        // Handle metabox actions
-        add_action( 'woocommerce_process_shop_order_meta', [ $this, 'handle_actions' ], 50 );
-
-        // HPOS
+        // Handle metabox actions (legacy posts + HPOS)
         add_action( 'woocommerce_process_shop_order_meta', [ $this, 'handle_actions' ], 50 );
 
         // Admin styles
@@ -33,11 +30,20 @@ class CDEK_Shipping_Admin {
      * Register metabox on order page.
      */
     public function add_metabox(): void {
-        $screen = wc_get_container()->get(
-            \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class
-        )->custom_orders_table_usage_is_enabled()
-            ? wc_get_page_screen_id( 'shop-order' )
-            : 'shop_order';
+        $screen = 'shop_order';
+        try {
+            if ( function_exists( 'wc_get_container' ) &&
+                 class_exists( \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class ) ) {
+                $controller = wc_get_container()->get(
+                    \Automattic\WooCommerce\Internal\DataStores\Orders\CustomOrdersTableController::class
+                );
+                if ( $controller->custom_orders_table_usage_is_enabled() ) {
+                    $screen = wc_get_page_screen_id( 'shop-order' );
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // WC < 7.1 or HPOS classes not available — fallback to legacy
+        }
 
         add_meta_box(
             'cdek_ship_metabox',
@@ -192,6 +198,10 @@ class CDEK_Shipping_Admin {
      * Handle metabox button actions.
      */
     public function handle_actions( $order_id ): void {
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            return;
+        }
+
         if ( ! isset( $_POST['cdek_ship_metabox_nonce'] ) ||
              ! wp_verify_nonce( $_POST['cdek_ship_metabox_nonce'], 'cdek_ship_metabox' ) ) {
             return;
@@ -378,16 +388,18 @@ class CDEK_Shipping_Admin {
                 wp_die( 'Не удалось создать запрос на печать' );
             }
 
-            // Wait and get PDF (retry a few times)
-            $pdf = null;
-            for ( $i = 0; $i < 5; $i++ ) {
-                sleep( 2 );
+            // Wait briefly and try to get PDF (max 2 attempts, non-blocking friendly)
+            sleep( 3 );
+            $pdf = $api->get_print_pdf( $print_uuid );
+
+            if ( ! $pdf ) {
+                // Second attempt after short wait
+                sleep( 3 );
                 $pdf = $api->get_print_pdf( $print_uuid );
-                if ( $pdf ) break;
             }
 
             if ( ! $pdf ) {
-                wp_die( 'Этикетка ещё не готова. Попробуйте через минуту.' );
+                wp_die( 'Этикетка ещё не готова. Попробуйте через 30 секунд.' );
             }
 
             header( 'Content-Type: application/pdf' );
@@ -457,10 +469,14 @@ class CDEK_Shipping_Admin {
             }
             $total_weight += $w * $qty;
 
-            // Dimensions
-            $l  = (float) $product->get_length() ?: $default_length;
-            $wi = (float) $product->get_width() ?: $default_width;
-            $h  = (float) $product->get_height() ?: $default_height;
+            // Dimensions in cm (convert from WC units)
+            $dim_unit = get_option( 'woocommerce_dimension_unit', 'cm' );
+            $l  = (float) $product->get_length();
+            $wi = (float) $product->get_width();
+            $h  = (float) $product->get_height();
+            if ( $l > 0 ) { $l = wc_get_dimension( $l, 'cm', $dim_unit ); } else { $l = $default_length; }
+            if ( $wi > 0 ) { $wi = wc_get_dimension( $wi, 'cm', $dim_unit ); } else { $wi = $default_width; }
+            if ( $h > 0 ) { $h = wc_get_dimension( $h, 'cm', $dim_unit ); } else { $h = $default_height; }
 
             $max_length   = max( $max_length, $l );
             $max_width    = max( $max_width, $wi );

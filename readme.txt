@@ -1,7 +1,7 @@
 === СДЭК Доставка — ПВЗ для WooCommerce ===
 Contributors: al-nemirov
 Tags: доставка, woocommerce, сдэк, cdek, shipping, pvz, пвз, пункт выдачи
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
@@ -67,6 +67,19 @@ License: MIT
 5. Настройте город отправки, наценки, тарифы
 
 == Changelog ==
+
+= 1.2.0 =
+
+* Fix: дублирование хука woocommerce_process_shop_order_meta (двойной вызов handle_actions)
+* Fix: fatal error в add_metabox() при WC < 7.1 — добавлен try/catch для HPOS
+* Fix: полностью нерабочий метод get_barcode_pdf() — переписан с корректным URL
+* Fix: shipment_point получал код города вместо кода ПВЗ отправки
+* Fix: admin-класс загружался на фронтенде — обёрнут в is_admin()
+* Fix: кеш OAuth-токена был общий для test/prod — раздельные ключи
+* Fix: XSS в тесте API — innerHTML заменён на textContent
+* Fix: отсутствовала проверка capability в handle_actions
+* Fix: конвертация единиц габаритов (мм→см) через wc_get_dimension()
+* Improvement: уменьшено время блокировки PHP при загрузке этикетки (6с вместо 10с)
 
 = 1.1.0 =
 
