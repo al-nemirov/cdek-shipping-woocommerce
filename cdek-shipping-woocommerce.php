@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.2.0' );
+define( 'CDEK_SHIP_VERSION', '1.2.1' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );
@@ -25,7 +25,6 @@ define( 'CDEK_SHIP_FILE', __FILE__ );
  * ═══════════════════════════════════════════════════════════ */
 
 require_once CDEK_SHIP_DIR . 'includes/class-cdek-api.php';
-require_once CDEK_SHIP_DIR . 'includes/class-cdek-shipping.php';
 
 // Admin class only on backend (metabox, order management, labels)
 if ( is_admin() ) {
@@ -49,8 +48,12 @@ add_action( 'before_woocommerce_init', function () {
 
 
 /* ═══════════════════════════════════════════════════════════
- *  3. REGISTER SHIPPING METHOD
+ *  3. REGISTER SHIPPING METHOD (after WC_Shipping_Method is available)
  * ═══════════════════════════════════════════════════════════ */
+
+add_action( 'woocommerce_shipping_init', function () {
+    require_once CDEK_SHIP_DIR . 'includes/class-cdek-shipping.php';
+} );
 
 add_filter( 'woocommerce_shipping_methods', function ( $methods ) {
     $methods['cdek_pvz'] = 'CDEK_Shipping_Method';

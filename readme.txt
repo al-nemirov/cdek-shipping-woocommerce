@@ -1,7 +1,7 @@
 === СДЭК Доставка — ПВЗ для WooCommerce ===
 Contributors: al-nemirov
 Tags: доставка, woocommerce, сдэк, cdek, shipping, pvz, пвз, пункт выдачи
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
@@ -67,6 +67,13 @@ License: MIT
 5. Настройте город отправки, наценки, тарифы
 
 == Changelog ==
+
+= 1.2.1 =
+
+* Fix: кнопка «Выбрать ПВЗ» не открывала модалку по клику мышью — trigger('change') вызывал update_checkout до openPvzModal()
+* Fix: совместимость с rodina-checkout.php v4.0 — hidden billing_city, 4-column grid, Dadata
+* Fix: CDEK_Shipping_Method загружался до инициализации WooCommerce — перенесён в woocommerce_shipping_init
+* Tested: полный checkout flow — расчёт, карта ПВЗ, выбор, оформление заказа, мета-бокс в админке
 
 = 1.2.0 =
 

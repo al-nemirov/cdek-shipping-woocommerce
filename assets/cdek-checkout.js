@@ -75,8 +75,13 @@
 
             $btn.on('click', function(e) {
                 e.preventDefault();
-                $input.prop('checked', true).trigger('change');
+                // Open modal FIRST — before WC update_checkout re-renders the DOM
                 openPvzModal();
+                // Then select the radio (only trigger change if not already checked,
+                // otherwise WC fires update_checkout which destroys shipping DOM)
+                if (!$input.prop('checked')) {
+                    $input.prop('checked', true).trigger('change');
+                }
             });
 
             $li.append($btn);
