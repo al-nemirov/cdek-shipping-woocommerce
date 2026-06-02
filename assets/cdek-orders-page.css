@@ -1,0 +1,131 @@
+/* CDEK Orders Page — чистый список заказов для склада */
+
+.cdek-op-wrap { max-width: 1400px; }
+.cdek-op-title { font-size: 20px; margin: 12px 0 16px; }
+
+/* Сводка */
+.cdek-op-stats {
+    display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap;
+}
+.cdek-op-stat {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    padding: 14px 20px; min-width: 120px; text-align: center; cursor: pointer;
+    transition: box-shadow .15s, border-color .15s;
+}
+.cdek-op-stat:hover { border-color: #2271b1; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+.cdek-op-stat strong { display: block; font-size: 28px; font-weight: 800; color: #1a1a1a; }
+.cdek-op-stat span { font-size: 12px; color: #666; }
+.cdek-op-stat--warn strong { color: #d63638; }
+.cdek-op-stat--ok strong { color: #00a32a; }
+
+/* Фильтры */
+.cdek-op-filters {
+    display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.cdek-op-filter {
+    padding: 6px 14px; border: 1px solid #ccc; border-radius: 20px;
+    background: #fff; cursor: pointer; font-size: 13px; transition: all .15s;
+}
+.cdek-op-filter:hover { border-color: #2271b1; color: #2271b1; }
+.cdek-op-filter.active { background: #2271b1; color: #fff; border-color: #2271b1; }
+.cdek-op-search {
+    margin-left: auto; padding: 6px 12px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 13px; width: 220px;
+}
+
+/* Таблица */
+.cdek-op-table-wrap { overflow-x: auto; }
+.cdek-op-table {
+    width: 100%; border-collapse: collapse; background: #fff;
+    border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;
+}
+.cdek-op-table th {
+    background: #f6f7f7; padding: 10px 12px; text-align: left;
+    font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .04em; color: #555; border-bottom: 1px solid #e0e0e0;
+}
+.cdek-op-table td {
+    padding: 10px 12px; border-bottom: 1px solid #f0f0f0;
+    font-size: 13px; vertical-align: middle;
+}
+.cdek-op-table tr:last-child td { border-bottom: 0; }
+.cdek-op-table tr:hover td { background: #fafafa; }
+.cdek-op-table tr.is-today td { background: #f0f7ff; }
+.cdek-op-table tr.is-today:hover td { background: #e6f0fb; }
+
+.cdek-op-loading { text-align: center; padding: 40px; color: #888; }
+
+/* Заказ */
+.cdek-op-num { font-weight: 700; color: #2271b1; text-decoration: none; }
+.cdek-op-num:hover { text-decoration: underline; }
+.cdek-op-date { font-size: 12px; color: #888; white-space: nowrap; }
+.cdek-op-today-badge { font-size: 10px; background: #2271b1; color: #fff; border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+
+/* Покупатель */
+.cdek-op-customer { font-weight: 500; }
+.cdek-op-phone { font-size: 11px; color: #888; }
+
+/* Товары */
+.cdek-op-items { font-size: 12px; color: #333; max-width: 200px; }
+.cdek-op-items li { margin: 0; padding: 0; list-style: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Сумма */
+.cdek-op-total { font-weight: 700; white-space: nowrap; }
+
+/* Статус заказа */
+.cdek-op-wc-status {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.cdek-op-wc-status--processing { background: #d1ecf1; color: #0c5460; }
+.cdek-op-wc-status--completed  { background: #d4edda; color: #155724; }
+.cdek-op-wc-status--pending    { background: #fff3cd; color: #856404; }
+.cdek-op-wc-status--cancelled  { background: #f8d7da; color: #721c24; }
+.cdek-op-wc-status--other      { background: #e9ecef; color: #555; }
+
+/* Доставка */
+.cdek-op-ship {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.cdek-op-ship--cdek { background: #fce8e8; color: #c0392b; }
+.cdek-op-ship--yd   { background: #fffbcc; color: #b8860b; }
+.cdek-op-ship--other { background: #f0f0f0; color: #555; }
+
+/* СДЭК статус */
+.cdek-op-cdek-ok   { color: #00a32a; font-weight: 600; font-size: 12px; }
+.cdek-op-cdek-wait { color: #d63638; font-size: 12px; }
+.cdek-op-cdek-uuid { font-size: 11px; color: #888; display: block; }
+
+/* МС статус */
+.cdek-op-ms-ok   { color: #00a32a; font-weight: 600; font-size: 12px; }
+.cdek-op-ms-wait { color: #d63638; font-size: 12px; }
+.cdek-op-ms-err  { color: #d63638; font-size: 11px; }
+
+/* Действия */
+.cdek-op-actions { display: flex; gap: 4px; flex-wrap: nowrap; }
+.cdek-op-btn {
+    padding: 4px 8px; border: 1px solid #ccc; border-radius: 5px;
+    background: #fff; font-size: 11px; cursor: pointer; white-space: nowrap;
+    transition: all .15s; color: #333; text-decoration: none; display: inline-block;
+}
+.cdek-op-btn:hover { background: #f6f7f7; }
+.cdek-op-btn--cdek { border-color: #c0392b; color: #c0392b; }
+.cdek-op-btn--cdek:hover { background: #fce8e8; }
+.cdek-op-btn--ms { border-color: #2271b1; color: #2271b1; }
+.cdek-op-btn--ms:hover { background: #e8f0fb; }
+.cdek-op-btn--view { border-color: #555; }
+.cdek-op-btn--loading { opacity: .5; pointer-events: none; }
+
+/* Уведомления в ряду */
+.cdek-op-row-notice {
+    font-size: 11px; padding: 3px 8px; border-radius: 4px; margin-top: 4px;
+    display: block;
+}
+.cdek-op-row-notice--ok  { background: #d4edda; color: #155724; }
+.cdek-op-row-notice--err { background: #f8d7da; color: #721c24; }
+
+@media (max-width: 900px) {
+    .cdek-op-table th:nth-child(4),
+    .cdek-op-table td:nth-child(4) { display: none; }
+}
