@@ -249,12 +249,17 @@ class CDEK_Shipping_Admin {
 
             // Get shipping method settings
             $settings = $this->get_shipping_settings( $order );
-            $sender_code = (int) ( $settings['sender_city_code'] ?? 44 );
-            $sender_postal = $settings['sender_postal_code'] ?? '107023';
+            // Отправитель: приоритет глобальным настройкам СДЭК (адрес склада), затем настройки метода
+            $g = get_option( 'cdek_ship_settings', [] );
+            $sender_code   = (int) ( $g['sender_city_code'] ?? $settings['sender_city_code'] ?? 44 );
+            $sender_postal = $g['sender_postal'] ?? ( $settings['sender_postal_code'] ?? '' );
 
             $from_location = [ 'code' => $sender_code ];
             if ( $sender_postal ) {
                 $from_location['postal_code'] = $sender_postal;
+            }
+            if ( ! empty( $g['sender_address'] ) ) {
+                $from_location['address'] = $g['sender_address']; // нужно для тарифа «дверь-склад» (курьер у нас)
             }
 
             // Build packages from order

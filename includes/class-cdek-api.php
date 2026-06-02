@@ -336,23 +336,39 @@ class CDEK_Shipping_API {
         array $from_location,
         array $packages
     ): array {
+        // Отправитель из настроек (договор «доставка» требует company + phone)
+        $settings       = get_option( 'cdek_ship_settings', [] );
+        $sender_company = $settings['sender_company'] ?? get_bloginfo( 'name' );
+        $sender_contact = $settings['sender_contact'] ?? $sender_company;
+        $sender_phone   = $settings['sender_phone'] ?? '';
+
+        $sender = [ 'company' => $sender_company, 'name' => $sender_contact ];
+        if ( $sender_phone !== '' ) {
+            $sender['phones'] = [ [ 'number' => $sender_phone ] ];
+        }
+
+        // Каждое грузоместо обязано иметь comment (требование type=2)
+        foreach ( $packages as &$_pkg ) {
+            if ( empty( $_pkg['comment'] ) ) {
+                $_pkg['comment'] = $settings['package_comment'] ?? 'Книги';
+            }
+        }
+        unset( $_pkg );
+
         $payload = [
-            'type'            => 1, // 1 = интернет-магазин
+            'type'            => 2, // 2 = доставка (договор НЕ интернет-магазин)
             'number'          => (string) $wc_order->get_id(),
             'tariff_code'     => $tariff_code,
             'comment'         => 'Заказ #' . $wc_order->get_order_number(),
             'delivery_point'  => $delivery_point_code,
-            'sender'          => [
-                'name'   => get_bloginfo( 'name' ),
-                'phones' => [],
-            ],
+            'sender'          => $sender,
             'recipient'       => [
                 'name'   => $wc_order->get_billing_first_name() . ' ' . $wc_order->get_billing_last_name(),
                 'phones' => [ [ 'number' => $wc_order->get_billing_phone() ] ],
                 'email'  => $wc_order->get_billing_email(),
             ],
             'from_location'   => $from_location,
-            'packages'        => $packages,
+            'packages'        => array_values( $packages ),
         ];
 
         // shipment_point — только если передан конкретный код ПВЗ/склада СДЭК (не город)
@@ -362,6 +378,30 @@ class CDEK_Shipping_API {
         }
 
         return $payload;
+    }
+
+    /* ─────────────────────────────────────────────────────────
+     *  INTAKE — заявка на вызов курьера
+     * ───────────────────────────────────────────────────────── */
+
+    /**
+     * Создать заявку на вызов курьера (один забор на день для всех заказов).
+     *
+     * @param array $data intake_date, intake_time_from/to, name, weight, comment, sender, from_location
+     * @return array
+     */
+    public function create_intake( array $data ): array {
+        return $this->post( '/intakes', $data );
+    }
+
+    /** Получить заявку на вызов курьера по uuid. */
+    public function get_intake( string $uuid ): array {
+        return $this->get( '/intakes/' . $uuid );
+    }
+
+    /** Отменить заявку на вызов курьера. */
+    public function delete_intake( string $uuid ): array {
+        return $this->request( 'DELETE', '/intakes/' . $uuid );
     }
 
     /* ─────────────────────────────────────────────────────────

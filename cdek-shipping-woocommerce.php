@@ -29,6 +29,8 @@ require_once CDEK_SHIP_DIR . 'includes/class-cdek-api.php';
 // Admin class only on backend (metabox, order management, labels)
 if ( is_admin() ) {
     require_once CDEK_SHIP_DIR . 'includes/class-cdek-admin.php';
+    require_once CDEK_SHIP_DIR . 'includes/class-cdek-intake-admin.php';
+    CDEK_Intake_Admin::init();
 }
 
 
@@ -79,20 +81,35 @@ add_action( 'admin_menu', function () {
 function cdek_ship_settings_page(): void {
     if ( isset( $_POST['cdek_ship_save'] ) && check_admin_referer( 'cdek_ship_nonce' ) ) {
         $settings = [
-            'account'        => sanitize_text_field( $_POST['account'] ?? '' ),
-            'secret'         => sanitize_text_field( $_POST['secret'] ?? '' ),
-            'test_mode'      => isset( $_POST['test_mode'] ) ? 'yes' : 'no',
-            'ymaps_api_key'  => sanitize_text_field( $_POST['ymaps_api_key'] ?? '' ),
+            'account'         => sanitize_text_field( $_POST['account'] ?? '' ),
+            'secret'          => sanitize_text_field( $_POST['secret'] ?? '' ),
+            'test_mode'       => isset( $_POST['test_mode'] ) ? 'yes' : 'no',
+            'ymaps_api_key'   => sanitize_text_field( $_POST['ymaps_api_key'] ?? '' ),
+            // Отправитель (склад) — для создания заказов type=2 и вызова курьера
+            'sender_company'  => sanitize_text_field( $_POST['sender_company'] ?? '' ),
+            'sender_contact'  => sanitize_text_field( $_POST['sender_contact'] ?? '' ),
+            'sender_phone'    => sanitize_text_field( $_POST['sender_phone'] ?? '' ),
+            'sender_city_code'=> (int) ( $_POST['sender_city_code'] ?? 44 ),
+            'sender_postal'   => sanitize_text_field( $_POST['sender_postal'] ?? '' ),
+            'sender_address'  => sanitize_text_field( $_POST['sender_address'] ?? '' ),
+            'package_comment' => sanitize_text_field( $_POST['package_comment'] ?? 'Книги' ),
         ];
         update_option( 'cdek_ship_settings', $settings );
         echo '<div class="notice notice-success"><p>Настройки сохранены.</p></div>';
     }
 
     $s = wp_parse_args( get_option( 'cdek_ship_settings', [] ), [
-        'account'        => '',
-        'secret'         => '',
-        'test_mode'      => 'yes',
-        'ymaps_api_key'  => '',
+        'account'         => '',
+        'secret'          => '',
+        'test_mode'       => 'yes',
+        'ymaps_api_key'   => '',
+        'sender_company'  => '',
+        'sender_contact'  => '',
+        'sender_phone'    => '',
+        'sender_city_code'=> 44,
+        'sender_postal'   => '',
+        'sender_address'  => '',
+        'package_comment' => 'Книги',
     ] );
     ?>
     <div class="wrap">
@@ -128,6 +145,35 @@ function cdek_ship_settings_page(): void {
                         <input type="text" name="ymaps_api_key" value="<?= esc_attr( $s['ymaps_api_key'] ) ?>" class="regular-text">
                         <p class="description">JavaScript API ключ из <a href="https://developer.tech.yandex.ru/" target="_blank">кабинета разработчика Яндекс</a>. Если пустой — карта работает без ключа (с ограничениями).</p>
                     </td>
+                </tr>
+                <tr><th colspan="2"><h2 style="margin:8px 0">Отправитель (склад)</h2><p class="description" style="font-weight:normal">Нужно для создания заказов и вызова курьера. Заполните по вашему договору СДЭК.</p></th></tr>
+                <tr>
+                    <th>Компания</th>
+                    <td><input type="text" name="sender_company" value="<?= esc_attr( $s['sender_company'] ) ?>" class="regular-text" placeholder="ООО «Ваша компания»"></td>
+                </tr>
+                <tr>
+                    <th>Контактное лицо</th>
+                    <td><input type="text" name="sender_contact" value="<?= esc_attr( $s['sender_contact'] ) ?>" class="regular-text" placeholder="Иванов Иван"></td>
+                </tr>
+                <tr>
+                    <th>Телефон склада</th>
+                    <td><input type="text" name="sender_phone" value="<?= esc_attr( $s['sender_phone'] ) ?>" class="regular-text" placeholder="+74951234567"></td>
+                </tr>
+                <tr>
+                    <th>Код города СДЭК</th>
+                    <td><input type="number" name="sender_city_code" value="<?= esc_attr( $s['sender_city_code'] ) ?>" style="width:120px"> <span class="description">44 = Москва</span></td>
+                </tr>
+                <tr>
+                    <th>Индекс</th>
+                    <td><input type="text" name="sender_postal" value="<?= esc_attr( $s['sender_postal'] ) ?>" style="width:120px"></td>
+                </tr>
+                <tr>
+                    <th>Адрес склада</th>
+                    <td><input type="text" name="sender_address" value="<?= esc_attr( $s['sender_address'] ) ?>" class="regular-text" placeholder="г. Москва, ул. Примерная, д. 1"></td>
+                </tr>
+                <tr>
+                    <th>Описание груза</th>
+                    <td><input type="text" name="package_comment" value="<?= esc_attr( $s['package_comment'] ) ?>" class="regular-text" placeholder="Книги"></td>
                 </tr>
             </table>
 
