@@ -171,6 +171,7 @@ class CDEK_Shipping_API {
      */
     public function calculate_tariff( int $tariff_code, array $from_location, array $to_location, array $packages ): array {
         return $this->post( '/calculator/tariff', [
+            'type'          => 2, // тип договора «доставка» (не интернет-магазин)
             'tariff_code'   => $tariff_code,
             'from_location' => $from_location,
             'to_location'   => $to_location,
@@ -185,6 +186,7 @@ class CDEK_Shipping_API {
      */
     public function calculate_tarifflist( array $from_location, array $to_location, array $packages ): array {
         return $this->post( '/calculator/tarifflist', [
+            'type'          => 2, // тип договора «доставка»
             'from_location' => $from_location,
             'to_location'   => $to_location,
             'packages'      => $packages,
