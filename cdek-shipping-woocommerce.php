@@ -26,13 +26,14 @@ define( 'CDEK_SHIP_FILE', __FILE__ );
 
 require_once CDEK_SHIP_DIR . 'includes/class-cdek-api.php';
 
-// Admin class only on backend (metabox, order management, labels)
+// Admin only
 if ( is_admin() ) {
     require_once CDEK_SHIP_DIR . 'includes/class-cdek-admin.php';
     require_once CDEK_SHIP_DIR . 'includes/class-cdek-intake-admin.php';
     require_once CDEK_SHIP_DIR . 'includes/class-cdek-orders-page.php';
-    CDEK_Intake_Admin::init();
-    CDEK_Orders_Page::init();
+    require_once CDEK_SHIP_DIR . 'includes/class-cdek-hub.php';
+    // Единая точка входа — Hub объединяет всё
+    CDEK_Hub::init();
 }
 
 

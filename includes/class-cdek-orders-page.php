@@ -10,47 +10,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class CDEK_Orders_Page {
 
-    public static function init(): void {
-        $self = new self();
-        add_action( 'admin_menu', [ $self, 'menu' ], 55 );
-        add_action( 'wp_ajax_cdek_orders_data', [ $self, 'ajax_orders' ] );
-        add_action( 'wp_ajax_cdek_quick_action', [ $self, 'ajax_quick_action' ] );
-        add_action( 'admin_enqueue_scripts', [ $self, 'enqueue' ] );
-    }
+    // Только AJAX — меню регистрирует Hub.
+    public static function init(): void {}
 
-    public function menu(): void {
-        add_submenu_page(
-            'woocommerce',
-            'Заказы — Отправка',
-            '📦 Заказы отправки',
-            'manage_woocommerce',
-            'cdek-orders',
-            [ $this, 'render' ]
-        );
-    }
-
-    public function enqueue( string $hook ): void {
-        if ( strpos( $hook, 'cdek-orders' ) === false ) {
-            return;
-        }
-        wp_enqueue_style(
-            'cdek-orders-page',
-            CDEK_SHIP_URL . 'assets/cdek-orders-page.css',
-            [],
-            CDEK_SHIP_VERSION
-        );
-        wp_enqueue_script(
-            'cdek-orders-page',
-            CDEK_SHIP_URL . 'assets/cdek-orders-page.js',
-            [ 'jquery' ],
-            CDEK_SHIP_VERSION,
-            true
-        );
-        wp_localize_script( 'cdek-orders-page', 'cdekOrders', [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'cdek_orders_nonce' ),
-        ] );
-    }
+    // Статические обёртки для Hub.
+    public static function render_static(): void      { ( new self() )->render(); }
+    public static function ajax_orders_static(): void { ( new self() )->ajax_orders(); }
+    public static function ajax_quick_action_static(): void { ( new self() )->ajax_quick_action(); }
 
     /* ── Страница ─────────────────────────────────────────────── */
 

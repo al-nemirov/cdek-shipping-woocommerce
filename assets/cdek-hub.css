@@ -1,0 +1,33 @@
+/* CDEK Hub — вкладки */
+.cdek-hub-wrap { max-width: 1400px; }
+
+.cdek-hub-tabs {
+    display: flex; gap: 2px; margin: 16px 0 0;
+    border-bottom: 2px solid #e0e0e0;
+}
+.cdek-hub-tab {
+    padding: 10px 22px; text-decoration: none; font-size: 14px; font-weight: 600;
+    color: #555; border: 1px solid transparent; border-bottom: none;
+    border-radius: 6px 6px 0 0; transition: all .15s;
+    background: transparent;
+}
+.cdek-hub-tab:hover { color: #2271b1; background: #f0f6ff; }
+.cdek-hub-tab.active {
+    background: #fff; color: #2271b1;
+    border-color: #e0e0e0; margin-bottom: -2px;
+    border-bottom-color: #fff;
+}
+
+.cdek-hub-body {
+    background: #fff; border: 1px solid #e0e0e0; border-top: 0;
+    padding: 22px 24px; border-radius: 0 6px 6px 6px;
+    min-height: 400px;
+}
+
+/* Убираем лишние отступы у вложенных таблиц */
+.cdek-hub-body .cdek-op-wrap { max-width: 100%; }
+.cdek-hub-body .cdek-op-title { margin-top: 0; font-size: 17px; }
+.cdek-hub-body h1.cdek-op-title { font-size: 17px !important; }
+.cdek-hub-body .wrap { margin: 0; }
+.cdek-hub-body h1:first-child,
+.cdek-hub-body h2:first-child { margin-top: 0; }

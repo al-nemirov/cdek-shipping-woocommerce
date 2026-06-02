@@ -13,23 +13,11 @@ class CDEK_Intake_Admin {
     const OPT_LAST  = 'cdek_ship_last_intake'; // данные последней заявки
     const META_DONE = '_cdek_intake_done';     // заказ передан курьеру (= номер заявки)
 
-    public static function init(): void {
-        $self = new self();
-        add_action( 'admin_menu', [ $self, 'menu' ], 60 );
-        add_action( 'admin_post_cdek_create_intake', [ $self, 'handle_create' ] );
-        add_action( 'admin_post_cdek_cancel_intake', [ $self, 'handle_cancel' ] );
-    }
+    // Только хуки admin_post — меню и AJAX регистрирует Hub.
+    public static function init(): void {}
 
-    public function menu(): void {
-        add_submenu_page(
-            'woocommerce',
-            'СДЭК — Вызов курьера',
-            'СДЭК Курьер',
-            'manage_woocommerce',
-            'cdek-intake',
-            [ $this, 'render' ]
-        );
-    }
+    // Статическая обёртка для Hub.
+    public static function render_static(): void { ( new self() )->render(); }
 
     private function time_presets(): array {
         return [
@@ -304,7 +292,8 @@ class CDEK_Intake_Admin {
     private function redirect_back( string $msg, string $err ): void {
         $url = add_query_arg(
             array_filter( [
-                'page'     => 'cdek-intake',
+                'page'     => CDEK_Hub::SLUG,
+                'tab'      => 'courier',
                 'cdek_msg' => $msg ?: null,
                 'cdek_err' => $err ?: null,
             ] ),
