@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.3.1
+ * Version: 1.3.2
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.3.1' );
+define( 'CDEK_SHIP_VERSION', '1.3.2' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );
@@ -394,6 +394,7 @@ add_action( 'wp_enqueue_scripts', function () {
 add_action( 'woocommerce_after_order_notes', function () {
     echo '<input type="hidden" name="cdek_pvz_code" id="cdek_pvz_code" value="">';
     echo '<input type="hidden" name="cdek_pvz_address" id="cdek_pvz_address" value="">';
+    echo '<input type="hidden" name="cdek_pvz_type" id="cdek_pvz_type" value="">';
 } );
 
 
@@ -427,6 +428,7 @@ add_action( 'woocommerce_checkout_update_order_meta', function ( $order_id ) {
         if ( ! $order ) return;
         $order->update_meta_data( '_cdek_pvz_code', sanitize_text_field( $_POST['cdek_pvz_code'] ) );
         $order->update_meta_data( '_cdek_pvz_address', sanitize_text_field( $_POST['cdek_pvz_address'] ?? '' ) );
+        $order->update_meta_data( '_cdek_pvz_type', sanitize_text_field( $_POST['cdek_pvz_type'] ?? '' ) );
         $order->save();
     }
 } );

@@ -39,6 +39,7 @@
             state.points = [];
             $('#cdek_pvz_code').val('');
             $('#cdek_pvz_address').val('');
+            $('#cdek_pvz_type').val('');
             $('.cdek-pvz-selected').remove();
         }
         state.lastCity = city;
@@ -263,6 +264,7 @@
 
         $('#cdek_pvz_code').val(point.code);
         $('#cdek_pvz_address').val(point.address);
+        $('#cdek_pvz_type').val(point.type || 'PVZ'); // PVZ или POSTAMAT
 
         $('.cdek-pvz-item').removeClass('cdek-pvz-item--active');
         $('.cdek-pvz-item[data-code="' + point.code + '"]').addClass('cdek-pvz-item--active');
