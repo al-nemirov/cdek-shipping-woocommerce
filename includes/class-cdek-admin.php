@@ -292,6 +292,7 @@ class CDEK_Shipping_Admin {
                 throw new \RuntimeException( $errors ?: 'Нет UUID в ответе' );
             }
 
+            $order->delete_meta_data( '_cdek_ship_error' );
             $order->update_meta_data( '_cdek_order_uuid', $uuid );
             $order->update_meta_data( '_cdek_last_status_code', 'CREATED' );
             $order->update_meta_data( '_cdek_last_status', 'Создан' );
@@ -313,6 +314,7 @@ class CDEK_Shipping_Admin {
             }
 
         } catch ( \Throwable $e ) {
+            $order->update_meta_data( '_cdek_ship_error', $e->getMessage() );
             $order->add_order_note( 'СДЭК: ошибка создания заказа — ' . $e->getMessage() );
             $order->save();
         }

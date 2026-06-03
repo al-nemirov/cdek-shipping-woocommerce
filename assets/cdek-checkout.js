@@ -91,7 +91,11 @@
     /* ─── Open PVZ Modal ─── */
     function openPvzModal() {
         var city = $('#billing_city').val() || '';
-        var postcode = $('#billing_postcode').val() || '';
+        // Индекс шлём ТОЛЬКО если поле видимо. При СДЭК-ПВЗ адресные поля скрыты,
+        // а в #billing_postcode может застрять старый индекс другого города
+        // (напр. 190000 = СПб) — он перебивал бы выбранный город на сервере.
+        var $pc = $('#billing_postcode');
+        var postcode = $pc.is(':visible') ? ($pc.val() || '') : '';
 
         if (!city && !postcode) {
             alert('Укажите город в форме заказа');

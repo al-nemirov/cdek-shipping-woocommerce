@@ -15,11 +15,11 @@ class CDEK_Shipping_API {
     /** @var string Sandbox API base */
     const API_TEST = 'https://api.edu.cdek.ru/v2';
 
-    /** @var string Test account */
-    const TEST_ACCOUNT = 'wqGwiQx0gg8mLtiEKsUinjVSICCjtTEP';
+    /** @var string Публичные тестовые ключи СДЭК (sandbox, api.edu.cdek.ru) — из офиц. документации. */
+    const TEST_ACCOUNT = 'EMscd6r9JnFiQ3bLoyjJY6eM78JrJceI';
 
-    /** @var string Test secret */
-    const TEST_SECRET = 'RmAmgvSgSl1yirlz9QupbzOJVqhCxcP5';
+    /** @var string Публичный тестовый secret СДЭК (sandbox). */
+    const TEST_SECRET = 'PjLZkKBHEiLK3YsjtNrt3TGNG0ahs3kG';
 
     /** @var string[] Tariff codes: склад → ПВЗ */
     const TARIFFS_WAREHOUSE_PVZ = [
@@ -279,11 +279,54 @@ class CDEK_Shipping_API {
     }
 
     /**
-     * Find city code by name (first match).
+     * Find city code by name.
+     *
+     * ВАЖНО: у СДЭК встречаются города-омонимы (напр. «Краснодар» в Краснодарском
+     * крае — 107 ПВЗ, и «Краснодар» в Кемеровской области — 0 ПВЗ). Порядок выдачи
+     * /location/cities НЕ гарантирован, поэтому слепой cities[0] иногда давал город
+     * без ПВЗ → «город не работает». Берём не первый, а тот, у кого реально есть ПВЗ.
      */
     public function find_city_code( string $city_name ): ?int {
+        $ck = 'cdek_ship_citycode_' . md5( mb_strtolower( trim( $city_name ) ) );
+        $cached = get_transient( $ck );
+        if ( $cached !== false ) {
+            return $cached ? (int) $cached : null;
+        }
+
         $cities = $this->get_cities( [ 'city' => $city_name ] );
-        return ! empty( $cities[0]['code'] ) ? (int) $cities[0]['code'] : null;
+        if ( empty( $cities ) ) {
+            set_transient( $ck, 0, DAY_IN_SECONDS );
+            return null;
+        }
+
+        // Один кандидат — без лишних запросов.
+        if ( count( $cities ) === 1 ) {
+            $code = (int) ( $cities[0]['code'] ?? 0 );
+            set_transient( $ck, $code, DAY_IN_SECONDS );
+            return $code ?: null;
+        }
+
+        // Несколько одноимённых — выбираем город с максимальным числом ПВЗ.
+        $best = 0;
+        $best_count = -1;
+        foreach ( $cities as $c ) {
+            $code = (int) ( $c['code'] ?? 0 );
+            if ( ! $code ) {
+                continue;
+            }
+            $points = $this->get_delivery_points_cached( $code, 'PVZ' );
+            $n = is_array( $points ) ? count( $points ) : 0;
+            if ( $n > $best_count ) {
+                $best_count = $n;
+                $best = $code;
+            }
+        }
+        // Если ни у кого нет ПВЗ — вернём первый, чтобы не падать.
+        if ( ! $best ) {
+            $best = (int) ( $cities[0]['code'] ?? 0 );
+        }
+        set_transient( $ck, $best, DAY_IN_SECONDS );
+        return $best ?: null;
     }
 
     /**

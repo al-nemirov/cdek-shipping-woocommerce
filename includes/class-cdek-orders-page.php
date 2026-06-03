@@ -296,8 +296,8 @@ class CDEK_Orders_Page {
                 if ( class_exists( 'CDEK_Shipping_Admin' ) ) {
                     $admin = new CDEK_Shipping_Admin();
                     $ref   = new ReflectionClass( $admin );
-                    if ( $ref->hasMethod( 'fetch_cdek_status' ) ) {
-                        $m = $ref->getMethod( 'fetch_cdek_status' );
+                    if ( $ref->hasMethod( 'refresh_status' ) ) {
+                        $m = $ref->getMethod( 'refresh_status' );
                         $m->setAccessible( true );
                         $m->invoke( $admin, $order );
                     }
@@ -305,7 +305,7 @@ class CDEK_Orders_Page {
                     wp_send_json_success( [
                         'msg'    => 'Статус обновлён',
                         'status' => $order->get_meta( '_cdek_last_status' ),
-                        'track'  => $order->get_meta( '_cdek_track_number' ),
+                        'track'  => $order->get_meta( '_cdek_tracking_number' ),
                     ] );
                 } else {
                     wp_send_json_error( 'CDEK Admin class not found' );
