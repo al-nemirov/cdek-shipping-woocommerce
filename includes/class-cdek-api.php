@@ -549,34 +549,43 @@ class CDEK_Shipping_API {
      * @return string|null PDF binary or null if not ready
      */
     public function get_barcode_pdf( string $print_uuid ): ?string {
-        $url  = $this->base_url . '/print/barcodes/' . $print_uuid;
-        $args = [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->get_token(),
-                'Accept'        => 'application/pdf',
-            ],
+        $url = $this->base_url . '/print/barcodes/' . $print_uuid;
+        // Статус JSON (с Accept: application/pdf СДЭК отдаёт 202, пока бинарник не готов).
+        $response = wp_remote_get( $url, [
+            'headers' => [ 'Authorization' => 'Bearer ' . $this->get_token(), 'Accept' => 'application/json' ],
             'timeout' => 30,
-        ];
-
-        $response = wp_remote_get( $url, $args );
-
+        ] );
         if ( is_wp_error( $response ) ) {
             return null;
         }
-
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code === 202 ) {
-            return null; // not ready yet
-        }
-        if ( $code !== 200 ) {
+        if ( $code === 202 || $code !== 200 ) {
             return null;
         }
-
-        $content_type = wp_remote_retrieve_header( $response, 'content-type' );
-        if ( str_contains( $content_type, 'application/pdf' ) ) {
+        $ct = wp_remote_retrieve_header( $response, 'content-type' );
+        if ( str_contains( (string) $ct, 'application/pdf' ) ) {
             return wp_remote_retrieve_body( $response );
         }
-
+        // JSON: ищем READY по всему списку (не только [0]), затем качаем .pdf с авторизацией
+        $body     = json_decode( wp_remote_retrieve_body( $response ), true );
+        $is_ready = false;
+        foreach ( (array) ( $body['entity']['statuses'] ?? [] ) as $st ) {
+            if ( ( $st['code'] ?? '' ) === 'READY' ) { $is_ready = true; break; }
+        }
+        if ( ! $is_ready ) {
+            return null;
+        }
+        $url_pdf = $body['entity']['url'] ?? ( $this->base_url . '/print/barcodes/' . $print_uuid . '.pdf' );
+        $pdf_response = wp_remote_get( $url_pdf, [
+            'headers' => [ 'Authorization' => 'Bearer ' . $this->get_token() ],
+            'timeout' => 30,
+        ] );
+        if ( ! is_wp_error( $pdf_response ) && wp_remote_retrieve_response_code( $pdf_response ) === 200 ) {
+            $pdf_body = wp_remote_retrieve_body( $pdf_response );
+            if ( strncmp( (string) $pdf_body, '%PDF', 4 ) === 0 ) {
+                return $pdf_body;
+            }
+        }
         return null;
     }
 

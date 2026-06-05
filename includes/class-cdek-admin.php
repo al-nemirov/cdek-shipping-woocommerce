@@ -386,28 +386,23 @@ class CDEK_Shipping_Admin {
         try {
             $api = cdek_ship_get_api();
 
-            // Request barcode/waybill
-            $result = $api->post_raw( '/print/orders', [
-                'orders' => [ [ 'order_uuid' => $uuid ] ],
-            ] );
-
-            $print_uuid = $result['entity']['uuid'] ?? '';
+            // Запрос ШТРИХКОДА (наклейка на посылку), а не накладной (/print/orders).
+            $print_uuid = $api->create_barcode_print( $uuid );
             if ( ! $print_uuid ) {
-                wp_die( 'Не удалось создать запрос на печать' );
+                wp_die( 'Не удалось создать запрос на печать штрихкода' );
             }
 
-            // Wait briefly and try to get PDF (max 2 attempts, non-blocking friendly)
+            // Ждём готовности (макс 2 попытки)
             sleep( 3 );
-            $pdf = $api->get_print_pdf( $print_uuid );
+            $pdf = $api->get_barcode_pdf( $print_uuid );
 
             if ( ! $pdf ) {
-                // Second attempt after short wait
                 sleep( 3 );
-                $pdf = $api->get_print_pdf( $print_uuid );
+                $pdf = $api->get_barcode_pdf( $print_uuid );
             }
 
             if ( ! $pdf ) {
-                wp_die( 'Этикетка ещё не готова. Попробуйте через 30 секунд.' );
+                wp_die( 'Штрихкод ещё готовится в СДЭК. Обновите страницу и попробуйте через 20–30 секунд.' );
             }
 
             header( 'Content-Type: application/pdf' );
