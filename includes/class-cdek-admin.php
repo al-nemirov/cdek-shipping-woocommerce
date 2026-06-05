@@ -185,8 +185,9 @@ class CDEK_Shipping_Admin {
                 var orderId = $(this).data('order');
                 var $btn = $(this);
                 $btn.prop('disabled', true).text('Загрузка...');
-                window.location.href = ajaxurl + '?action=cdek_ship_download_label&order_id=' + orderId +
-                    '&_wpnonce=<?= wp_create_nonce( 'cdek_ship_label' ) ?>';
+                // открываем этикетку в НОВОМ окне/вкладке (inline PDF)
+                window.open( ajaxurl + '?action=cdek_ship_download_label&order_id=' + orderId +
+                    '&_wpnonce=<?= wp_create_nonce( 'cdek_ship_label' ) ?>', '_blank' );
                 setTimeout(function() { $btn.prop('disabled', false).html('🏷️ Скачать этикетку'); }, 3000);
             });
         });
@@ -410,7 +411,8 @@ class CDEK_Shipping_Admin {
             }
 
             header( 'Content-Type: application/pdf' );
-            header( 'Content-Disposition: attachment; filename="cdek-label-' . $order_id . '.pdf"' );
+            // inline → открывается в новой вкладке/окне (а не скачивается)
+            header( 'Content-Disposition: inline; filename="cdek-label-' . $order_id . '.pdf"' );
             header( 'Content-Length: ' . strlen( $pdf ) );
             echo $pdf;
             exit;

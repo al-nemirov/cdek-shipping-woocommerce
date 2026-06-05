@@ -468,10 +468,12 @@ class CDEK_Shipping_API {
      */
     public function get_print_pdf( string $uuid ): ?string {
         $url  = $this->base_url . '/print/orders/' . $uuid;
+        // Запрашиваем СТАТУС (JSON), а не сам PDF: с Accept: application/pdf СДЭК отдаёт 202,
+        // пока бинарник не материализован, хотя статус печати уже READY. Берём JSON → url → PDF.
         $args = [
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->get_token(),
-                'Accept'        => 'application/pdf',
+                'Accept'        => 'application/json',
             ],
             'timeout' => 30,
         ];
@@ -498,17 +500,29 @@ class CDEK_Shipping_API {
             return wp_remote_retrieve_body( $response );
         }
 
-        // JSON response = check status
-        $body = json_decode( wp_remote_retrieve_body( $response ), true );
-        $status = $body['entity']['statuses'][0]['code'] ?? '';
-        if ( $status === 'READY' ) {
-            // URL to download
-            $url_pdf = $body['entity']['url'] ?? '';
-            if ( $url_pdf ) {
-                $pdf_response = wp_remote_get( $url_pdf, [ 'timeout' => 30 ] );
-                if ( ! is_wp_error( $pdf_response ) && wp_remote_retrieve_response_code( $pdf_response ) === 200 ) {
-                    return wp_remote_retrieve_body( $pdf_response );
-                }
+        // JSON response = проверяем статусы. READY может быть НЕ первым в массиве
+        // (ACCEPTED → PROCESSING → READY), поэтому ищем READY по всему списку.
+        $body     = json_decode( wp_remote_retrieve_body( $response ), true );
+        $statuses = $body['entity']['statuses'] ?? [];
+        $is_ready = false;
+        foreach ( (array) $statuses as $st ) {
+            if ( ( $st['code'] ?? '' ) === 'READY' ) { $is_ready = true; break; }
+        }
+        if ( ! $is_ready ) {
+            return null;
+        }
+
+        // Ссылка на PDF (или собираем сами). Скачиваем С АВТОРИЗАЦИЕЙ (это эндпоинт API).
+        $url_pdf = $body['entity']['url'] ?? ( $this->base_url . '/print/orders/' . $uuid . '.pdf' );
+        $pdf_response = wp_remote_get( $url_pdf, [
+            'headers' => [ 'Authorization' => 'Bearer ' . $this->get_token() ],
+            'timeout' => 30,
+        ] );
+        if ( ! is_wp_error( $pdf_response ) && wp_remote_retrieve_response_code( $pdf_response ) === 200 ) {
+            $pdf_body = wp_remote_retrieve_body( $pdf_response );
+            // санити: настоящий PDF начинается с %PDF
+            if ( strncmp( (string) $pdf_body, '%PDF', 4 ) === 0 ) {
+                return $pdf_body;
             }
         }
 
