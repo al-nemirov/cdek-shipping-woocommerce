@@ -510,13 +510,16 @@ class CDEK_Shipping_Admin {
         if ( $max_width < 1 )       $max_width = $default_width;
         if ( $total_height < 1 )    $total_height = $default_height;
 
+        // ВАЖНО: договор СДЭК type=2 («доставка») — заказ НЕ может содержать товарные позиции
+        // (ошибка ve_delivery_can_not_has_goods). Передаём только вес/габариты + comment.
+        // $items не включаем (для интернет-магазинного type=1 их вернули бы; у нас type=2).
+        unset( $items );
         return [ [
             'number'  => 'PKG-' . $order->get_id(),
             'weight'  => (int) round( $total_weight ),
             'length'  => (int) ceil( $max_length ),
             'width'   => (int) ceil( $max_width ),
             'height'  => (int) ceil( $total_height ),
-            'items'   => $items,
         ] ];
     }
 
