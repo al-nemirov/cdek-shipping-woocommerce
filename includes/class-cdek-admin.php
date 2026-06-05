@@ -268,9 +268,21 @@ class CDEK_Shipping_Admin {
             // Build packages from order
             $packages = $this->build_packages_from_order( $order, $settings );
 
-            // Determine tariff
-            $tariff_codes = $settings['tariffs'] ?? [ '136', '234' ];
-            $tariff_code  = (int) $tariff_codes[0]; // Use first configured tariff
+            // Тариф — ТОТ ЖЕ, что показали покупателю при расчёте (сохранён в мете позиции
+            // доставки 'cdek_tariff'). Иначе магазин может переплатить СДЭК по более дорогому
+            // тарифу, чем собрал с покупателя. Фолбэк — первый настроенный тариф.
+            $tariff_code = 0;
+            foreach ( $order->get_shipping_methods() as $sm ) {
+                if ( str_contains( (string) $sm->get_method_id(), 'cdek_pvz' ) ) {
+                    $t = (int) $sm->get_meta( 'cdek_tariff' );
+                    if ( $t > 0 ) { $tariff_code = $t; }
+                    break;
+                }
+            }
+            if ( $tariff_code <= 0 ) {
+                $tariff_codes = $settings['tariffs'] ?? [ '136', '234' ];
+                $tariff_code  = (int) $tariff_codes[0];
+            }
 
             // Build payload
             $payload = $api->build_order_payload(
