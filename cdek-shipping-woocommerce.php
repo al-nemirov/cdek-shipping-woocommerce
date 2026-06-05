@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.3.6
+ * Version: 1.3.7
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.3.6' );
+define( 'CDEK_SHIP_VERSION', '1.3.7' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );
@@ -65,6 +65,33 @@ add_filter( 'woocommerce_shipping_methods', function ( $methods ) {
     return $methods;
 } );
 
+// НДС на доставку СДЭК: покупатель видит стоимость доставки уже с НДС.
+// Ставка % — из настроек (delivery_vat_percent, по умолчанию 22). Округление ВВЕРХ до рубля.
+// 0 — без НДС. На другие методы (Яндекс и т.п.) не влияет.
+add_filter( 'woocommerce_package_rates', function ( $rates ) {
+    $s   = get_option( 'cdek_ship_settings', [] );
+    $vat = isset( $s['delivery_vat_percent'] ) ? (float) $s['delivery_vat_percent'] : 22.0;
+    if ( $vat <= 0 ) {
+        return $rates;
+    }
+    $mult = 1 + ( $vat / 100 );
+    foreach ( $rates as $rate ) {
+        if ( strpos( (string) $rate->get_method_id(), 'cdek_pvz' ) === false ) {
+            continue; // только СДЭК
+        }
+        $cost = (float) $rate->get_cost();
+        if ( $cost > 0 ) {
+            $rate->set_cost( (float) ceil( $cost * $mult ) ); // вверх до рубля, без копеек
+            $taxes = $rate->get_taxes();
+            if ( is_array( $taxes ) && $taxes ) {
+                foreach ( $taxes as $k => $t ) { $taxes[ $k ] = (float) $t * $mult; }
+                $rate->set_taxes( $taxes );
+            }
+        }
+    }
+    return $rates;
+}, 100 );
+
 
 /* ═══════════════════════════════════════════════════════════
  *  4. ADMIN SETTINGS PAGE (API keys, Yandex Maps key)
@@ -96,6 +123,7 @@ function cdek_ship_settings_page(): void {
             'sender_postal'   => sanitize_text_field( $_POST['sender_postal'] ?? '' ),
             'sender_address'  => sanitize_text_field( $_POST['sender_address'] ?? '' ),
             'package_comment' => sanitize_text_field( $_POST['package_comment'] ?? 'Книги' ),
+            'delivery_vat_percent' => max( 0, (float) str_replace( ',', '.', (string) ( $_POST['delivery_vat_percent'] ?? 22 ) ) ),
         ];
         update_option( 'cdek_ship_settings', $settings );
         echo '<div class="notice notice-success"><p>Настройки сохранены.</p></div>';
@@ -113,6 +141,7 @@ function cdek_ship_settings_page(): void {
         'sender_postal'   => '',
         'sender_address'  => '',
         'package_comment' => 'Книги',
+        'delivery_vat_percent' => 22,
     ] );
     ?>
     <div class="wrap">
@@ -177,6 +206,13 @@ function cdek_ship_settings_page(): void {
                 <tr>
                     <th>Описание груза</th>
                     <td><input type="text" name="package_comment" value="<?= esc_attr( $s['package_comment'] ) ?>" class="regular-text" placeholder="Книги"></td>
+                </tr>
+                <tr>
+                    <th>НДС на доставку, %</th>
+                    <td>
+                        <input type="number" name="delivery_vat_percent" value="<?= esc_attr( $s['delivery_vat_percent'] ) ?>" min="0" max="100" step="0.1" style="width:120px"> %
+                        <p class="description">Наценка НДС к стоимости доставки СДЭК (покупатель видит цену уже с НДС, округление вверх до рубля). 0 — без НДС. По умолчанию 22.</p>
+                    </td>
                 </tr>
             </table>
 
