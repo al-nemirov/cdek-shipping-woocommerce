@@ -144,8 +144,8 @@ class CDEK_Shipping_Admin {
             echo '<button type="submit" name="cdek_ship_refresh_status" value="1" class="button" style="width:100%;margin-bottom:6px">';
             echo '🔄 Обновить статус</button>';
 
-            echo '<button type="button" class="button cdek-download-label" data-order="' . esc_attr( $order->get_id() ) . '" style="width:100%;margin-bottom:6px">';
-            echo '🏷️ Скачать этикетку</button>';
+            echo '<button type="button" class="button cdek-download-label" data-order="' . esc_attr( $order->get_id() ) . '" data-type="barcode" style="width:49%;margin-bottom:6px">🏷️ Штрихкод</button> ';
+            echo '<button type="button" class="button cdek-download-label" data-order="' . esc_attr( $order->get_id() ) . '" data-type="waybill" style="width:49%;margin-bottom:6px">📄 Накладная</button>';
 
             // Resend button
             echo '<hr style="margin:8px 0">';
@@ -183,12 +183,14 @@ class CDEK_Shipping_Admin {
         jQuery(function($) {
             $('.cdek-download-label').on('click', function() {
                 var orderId = $(this).data('order');
+                var type    = $(this).data('type') || 'barcode';
                 var $btn = $(this);
+                var orig = $btn.html();
                 $btn.prop('disabled', true).text('Загрузка...');
-                // открываем этикетку в НОВОМ окне/вкладке (inline PDF)
+                // открываем PDF (штрихкод/накладная) в НОВОМ окне/вкладке (inline)
                 window.open( ajaxurl + '?action=cdek_ship_download_label&order_id=' + orderId +
-                    '&_wpnonce=<?= wp_create_nonce( 'cdek_ship_label' ) ?>', '_blank' );
-                setTimeout(function() { $btn.prop('disabled', false).html('🏷️ Скачать этикетку'); }, 3000);
+                    '&type=' + type + '&_wpnonce=<?= wp_create_nonce( 'cdek_ship_label' ) ?>', '_blank' );
+                setTimeout(function() { $btn.prop('disabled', false).html(orig); }, 3000);
             });
         });
         </script>
@@ -383,31 +385,44 @@ class CDEK_Shipping_Admin {
             wp_die( 'Заказ не отправлен в СДЭК' );
         }
 
+        // Тип печати: barcode = штрихкод (наклейка), waybill = накладная (А4-документ).
+        $is_waybill = ( ( $_GET['type'] ?? '' ) === 'waybill' );
+
         try {
             $api = cdek_ship_get_api();
 
-            // Запрос ШТРИХКОДА (наклейка на посылку), а не накладной (/print/orders).
-            $print_uuid = $api->create_barcode_print( $uuid );
+            if ( $is_waybill ) {
+                // НАКЛАДНАЯ (/print/orders)
+                $result     = $api->post_raw( '/print/orders', [ 'orders' => [ [ 'order_uuid' => $uuid ] ] ] );
+                $print_uuid = $result['entity']['uuid'] ?? '';
+                $getter     = 'get_print_pdf';
+                $what       = 'Накладная';
+                $fname      = 'cdek-waybill-';
+            } else {
+                // ШТРИХКОД (/print/barcodes)
+                $print_uuid = $api->create_barcode_print( $uuid );
+                $getter     = 'get_barcode_pdf';
+                $what       = 'Штрихкод';
+                $fname      = 'cdek-barcode-';
+            }
             if ( ! $print_uuid ) {
-                wp_die( 'Не удалось создать запрос на печать штрихкода' );
+                wp_die( 'Не удалось создать запрос на печать (' . $what . ')' );
             }
 
             // Ждём готовности (макс 2 попытки)
             sleep( 3 );
-            $pdf = $api->get_barcode_pdf( $print_uuid );
-
+            $pdf = $api->$getter( $print_uuid );
             if ( ! $pdf ) {
                 sleep( 3 );
-                $pdf = $api->get_barcode_pdf( $print_uuid );
+                $pdf = $api->$getter( $print_uuid );
             }
-
             if ( ! $pdf ) {
-                wp_die( 'Штрихкод ещё готовится в СДЭК. Обновите страницу и попробуйте через 20–30 секунд.' );
+                wp_die( $what . ' ещё готовится в СДЭК. Обновите страницу и попробуйте через 20–30 секунд.' );
             }
 
             header( 'Content-Type: application/pdf' );
             // inline → открывается в новой вкладке/окне (а не скачивается)
-            header( 'Content-Disposition: inline; filename="cdek-label-' . $order_id . '.pdf"' );
+            header( 'Content-Disposition: inline; filename="' . $fname . $order_id . '.pdf"' );
             header( 'Content-Length: ' . strlen( $pdf ) );
             echo $pdf;
             exit;
