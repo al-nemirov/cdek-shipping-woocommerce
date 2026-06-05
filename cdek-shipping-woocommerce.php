@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.3.2
+ * Version: 1.3.3
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.3.2' );
+define( 'CDEK_SHIP_VERSION', '1.3.3' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );

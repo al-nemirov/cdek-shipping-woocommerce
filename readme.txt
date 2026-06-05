@@ -68,6 +68,10 @@ License: MIT
 
 == Changelog ==
 
+= 1.3.3 =
+
+* Fix: «Class CDEK_Shipping_Method not found» при создании заказа из списка заказов (admin-ajax). Класс шиппинг-метода грузился только на хуке woocommerce_shipping_init, который в admin-ajax не срабатывает — теперь файл класса подгружается on-demand перед инстанцированием.
+
 = 1.2.1 =
 
 * Fix: кнопка «Выбрать ПВЗ» не открывала модалку по клику мышью — trigger('change') вызывал update_checkout до openPvzModal()

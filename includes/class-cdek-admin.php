@@ -427,6 +427,11 @@ class CDEK_Shipping_Admin {
         foreach ( $order->get_shipping_methods() as $method ) {
             if ( str_contains( $method->get_method_id(), 'cdek_pvz' ) ) {
                 $instance_id = $method->get_instance_id();
+                // Класс грузится только на хуке woocommerce_shipping_init, который НЕ срабатывает
+                // в admin-ajax (создание заказа из списка) → грузим файл класса on-demand.
+                if ( ! class_exists( '\CDEK_Shipping_Method' ) && defined( 'CDEK_SHIP_DIR' ) ) {
+                    require_once CDEK_SHIP_DIR . 'includes/class-cdek-shipping.php';
+                }
                 $shipping = new \CDEK_Shipping_Method( $instance_id );
                 return $shipping->instance_settings ?? [];
             }
