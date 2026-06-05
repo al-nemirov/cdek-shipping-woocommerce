@@ -3,7 +3,7 @@
  * Plugin Name: СДЭК Доставка — ПВЗ
  * Plugin URI: https://github.com/al-nemirov/cdek-shipping-woocommerce
  * Description: Доставка СДЭК до пункта выдачи. Расчёт стоимости, выбор ПВЗ на карте, создание заказов, трекинг, этикетки.
- * Version: 1.3.3
+ * Version: 1.3.4
  * Author: Al Nemirov
  * Author URI: https://github.com/al-nemirov
  * Requires PHP: 8.0
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CDEK_SHIP_VERSION', '1.3.3' );
+define( 'CDEK_SHIP_VERSION', '1.3.4' );
 define( 'CDEK_SHIP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CDEK_SHIP_URL', plugin_dir_url( __FILE__ ) );
 define( 'CDEK_SHIP_FILE', __FILE__ );
@@ -403,17 +403,24 @@ add_action( 'woocommerce_after_order_notes', function () {
  * ═══════════════════════════════════════════════════════════ */
 
 add_action( 'woocommerce_checkout_process', function () {
-    $chosen_methods = WC()->session ? WC()->session->get( 'chosen_shipping_methods', [] ) : [];
     $is_cdek = false;
-    foreach ( $chosen_methods as $m ) {
-        if ( str_contains( $m, 'cdek_pvz' ) ) {
-            $is_cdek = true;
-            break;
+
+    // 1) Надёжнее всего — из POST формы (на этом хуке метод уже отправлен).
+    if ( ! empty( $_POST['shipping_method'] ) ) {
+        foreach ( (array) wp_unslash( $_POST['shipping_method'] ) as $m ) {
+            if ( str_contains( (string) $m, 'cdek_pvz' ) ) { $is_cdek = true; break; }
+        }
+    }
+    // 2) Фолбэк — сессия (если POST по какой-то причине пуст).
+    if ( ! $is_cdek ) {
+        $chosen_methods = WC()->session ? WC()->session->get( 'chosen_shipping_methods', [] ) : [];
+        foreach ( (array) $chosen_methods as $m ) {
+            if ( str_contains( (string) $m, 'cdek_pvz' ) ) { $is_cdek = true; break; }
         }
     }
 
     if ( $is_cdek && empty( $_POST['cdek_pvz_code'] ) ) {
-        wc_add_notice( 'Выберите пункт выдачи СДЭК для оформления заказа.', 'error' );
+        wc_add_notice( 'Выберите пункт выдачи СДЭК для оформления заказа (кнопка «ВЫБРАТЬ ПВЗ»).', 'error' );
     }
 } );
 
